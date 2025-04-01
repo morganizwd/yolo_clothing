@@ -1,0 +1,5 @@
+train: ../yolo-clothes/dataset/images/train
+val: ../yolo-clothes/dataset/images/val
+
+nc: 4
+names: ['hoodie', 'tshirt', 'pants', 'jacket']

@@ -1,0 +1,4 @@
+hoodie
+tshirt
+pants
+jacket

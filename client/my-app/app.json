@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Нужно для выбора фото одежды",
+        "NSCameraUsageDescription": "Нужно для съёмки фото одежды"
+      }
     },
     "android": {
       "adaptiveIcon": {

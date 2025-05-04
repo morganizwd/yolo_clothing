@@ -38,9 +38,13 @@ class Photo(BaseModel):
     user_id: str
     uri: str
 
-class Outfit(BaseModel):
-    user_id: str
-    name: str = Field(..., description="Любое название лука")
-    date: datetime
-    items: List[DetectionItem]
-    photo_uris: List[str]
+class OutfitIn(BaseModel):
+    name: str                  # «Деловой вторник»
+    date: datetime             # 2024‑06‑15
+    items: list[DetectionItem] # полный список из recommend
+    photo_uris: list[str]      # для превью (можно [] ← необязательно)
+
+class Outfit(OutfitIn):
+    """Документ, который лежит в MongoDB"""
+    _id: str                   # ObjectId → str (заполняем в router)
+    user_id: str               # чей комплект

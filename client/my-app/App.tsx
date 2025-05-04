@@ -7,13 +7,14 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 import ResultScreen from './src/screens/ResultScreen';
 import AuthScreen from './src/screens/AuthScreen';
-import { bootstrapToken, logout } from './src/api/auth';
+import OutfitsScreen from './src/screens/OutfitsScreen';
+import { logout } from './src/api/auth';
 import { bootstrapAuthHeader } from './src/api/auth';
 
 const Stack = createStackNavigator();
 
 export default function App() {
-  const [token, setToken] = useState < string | null > (null);
+  const [token, setToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -54,6 +55,11 @@ export default function App() {
                     }, []);
                     return null;
                   }}
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="Outfits"
+                  component={OutfitsScreen}
                   options={{ headerShown: false }}
                 />
               </Stack.Navigator>

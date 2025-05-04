@@ -20,9 +20,9 @@ export async function saveOutfit(payload: {
 
 export async function listOutfits(): Promise<OutfitDoc[]> {
   const { data } = await http.get('/outfits/');
-  return data;                 // "_id" уже строка
+  return data;                 
 }
 
 export async function deleteOutfit(id: string) {
-  await http.delete(`/outfits/${id}`);   // ← id теперь не undefined
+  await http.delete(`/outfits/${id}`);  
 }

@@ -4,8 +4,8 @@ import React, {
     useState,
     useRef,
     useLayoutEffect,
-} from 'react';
-import {
+  } from 'react';
+  import {
     View,
     Text,
     Image,
@@ -17,8 +17,8 @@ import {
     StyleSheet,
     Dimensions,
     StatusBar,
-} from 'react-native';
-import {
+  } from 'react-native';
+  import {
     Searchbar,
     Card,
     FAB,
@@ -28,502 +28,502 @@ import {
     Dialog,
     TextInput,
     Snackbar,
-} from 'react-native-paper';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
-import { AntDesign } from '@expo/vector-icons';
-import {
+  } from 'react-native-paper';
+  import DateTimePicker from '@react-native-community/datetimepicker';
+  import { Picker } from '@react-native-picker/picker';
+  import { AntDesign } from '@expo/vector-icons';
+  import {
     recommendOutfits,
     DetectionItem,
-} from '../api';
-import { saveOutfit } from '../api/outfits';
-
-if (
+  } from '../api';
+  import { saveOutfit } from '../api/outfits';
+  
+  if (
     Platform.OS === 'android' &&
     UIManager.setLayoutAnimationEnabledExperimental
-) {
+  ) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-/* ──────────────── типы ──────────────── */
-type SingleResult = { uri: string; detections: DetectionItem[] };
-type Recommendation = {
+  }
+  
+  /* ──────────────── типы ──────────────── */
+  type SingleResult = { uri: string; detections: DetectionItem[] };
+  type Recommendation = {
     method: string;
     score: number;
     items: (DetectionItem & { uri: string })[];
-};
-
-/* ──────────────── константы ──────────── */
-const clothingOptions = ['hoodie', 'tshirt', 'pants', 'jacket'];
-const colorOptions = [
+  };
+  
+  /* ──────────────── константы ──────────── */
+  const clothingOptions = ['hoodie', 'tshirt', 'pants', 'jacket'];
+  const colorOptions = [
     /* … тот же массив, что был … */
-    'белый', 'чёрный', 'красный', 'лаймовый', 'синий', 'жёлтый', 'циан', 'магента',
-    'серебряный', 'серый', 'бордовый', 'оливковый', 'зелёный', 'фиолетовый', 'бирюзовый',
+    'белый','чёрный','красный','лаймовый','синий','жёлтый','циан','магента',
+    'серебряный','серый','бордовый','оливковый','зелёный','фиолетовый','бирюзовый',
     // …
-];
-
-/* ─────────────────────────────────────── */
-export default function ResultScreen({ route, navigation }: any) {
+  ];
+  
+  /* ─────────────────────────────────────── */
+  export default function ResultScreen({ route, navigation }: any) {
     const { results } = route.params as { results: SingleResult[] };
-
+  
     /* ---------------- state ---------------- */
     const [detectionsByImage, setDetectionsByImage] = useState<SingleResult[]>(
-        () => results.map(r => ({ ...r, detections: [...r.detections] })),
+      () => results.map(r => ({ ...r, detections: [...r.detections] })),
     );
     const [recommendations, setRecommendations] =
-        useState<Recommendation[] | null>(null);
-
+      useState<Recommendation[] | null>(null);
+  
     const [openImages, setOpenImages] = useState<boolean[]>(
-        results.map(() => true),
+      results.map(() => true),
     );
     const [openRecs, setOpenRecs] = useState<boolean[]>([]);
     const [selectedTab, setSelectedTab] =
-        useState<'detections' | 'recommendations'>('recommendations');
+      useState<'detections' | 'recommendations'>('recommendations');
     const [searchQuery, setSearchQuery] = useState('');
     const [expandAll, setExpandAll] = useState(true);
-
+  
     /* edit‑dialog */
     const [editVisible, setEditVisible] = useState(false);
     const [editImageIdx, setEditImageIdx] = useState(0);
     const [editDetIdx, setEditDetIdx] = useState(0);
     const [editName, setEditName] = useState('');
     const [editColor, setEditColor] = useState('');
-
+  
     /* save‑dialog  */
-    const [saveVisible, setSaveVisible] = useState(false);
-    const [saveRec, setSaveRec] = useState<Recommendation | null>(null);
-    const [saveName, setSaveName] = useState('');
-    const [saveDate, setSaveDate] = useState(new Date());
-    const [saving, setSaving] = useState(false);
-
+    const [saveVisible, setSaveVisible]   = useState(false);
+    const [saveRec,     setSaveRec]       = useState<Recommendation | null>(null);
+    const [saveName,    setSaveName]      = useState('');
+    const [saveDate,    setSaveDate]      = useState(new Date());
+    const [saving,      setSaving]        = useState(false);
+  
     /* misc */
     const [snackbar, setSnackbar] = useState<string | null>(null);
     const scrollRef = useRef<ScrollView>(null);
     const makeKey = (d: DetectionItem) => `${d.image_id}-${d.index}`;
-
+  
     /* --------------- header --------------- */
     useLayoutEffect(() => {
-        navigation.setOptions({
-            title: 'Детекции и рекомендации',
-            headerBackTitle: 'Назад',
-        });
+      navigation.setOptions({
+        title: 'Детекции и рекомендации',
+        headerBackTitle: 'Назад',
+      });
     }, [navigation]);
-
+  
     /* ---------- собрать все детекции ------- */
     const allDetections: (DetectionItem & { uri: string })[] =
-        detectionsByImage.flatMap(r =>
-            r.detections.map(d => ({ ...d, uri: r.uri })),
-        );
-
+      detectionsByImage.flatMap(r =>
+        r.detections.map(d => ({ ...d, uri: r.uri })),
+      );
+  
     /* ------------- расчёт рекомендаций ----- */
     const recalc = async () => {
-        try {
-            const rec = await recommendOutfits(allDetections);
-            const withUris = rec.map(r => ({
-                ...r,
-                items: r.items.map(it => {
-                    const orig = allDetections.find(
-                        d => d.index === it.index && d.image_id === it.image_id,
-                    );
-                    return { ...it, uri: orig?.uri || '' };
-                }),
-            }));
-            setRecommendations(withUris);
-            setOpenRecs(withUris.map(() => false));
-        } catch (e) {
-            console.warn('recommendOutfits', e);
-            setRecommendations([]);
-        }
+      try {
+        const rec = await recommendOutfits(allDetections);
+        const withUris = rec.map(r => ({
+          ...r,
+          items: r.items.map(it => {
+            const orig = allDetections.find(
+              d => d.index === it.index && d.image_id === it.image_id,
+            );
+            return { ...it, uri: orig?.uri || '' };
+          }),
+        }));
+        setRecommendations(withUris);
+        setOpenRecs(withUris.map(() => false));
+      } catch (e) {
+        console.warn('recommendOutfits', e);
+        setRecommendations([]);
+      }
     };
     useEffect(() => {
-        recalc();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+      recalc();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
+  
     /* ------------- loading  --------------- */
     if (!recommendations) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator animating size="large" />
-                <Text style={styles.loadingText}>Генерируем рекомендации…</Text>
-            </View>
-        );
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator animating size="large" />
+          <Text style={styles.loadingText}>Генерируем рекомендации…</Text>
+        </View>
+      );
     }
-
+  
     /* ------------- фильтрация -------------- */
     const q = searchQuery.trim().toLowerCase();
     const matches = (d: DetectionItem) =>
-        !q ||
-        d.name.toLowerCase().includes(q) ||
-        d.color_name?.toLowerCase().includes(q);
-
+      !q ||
+      d.name.toLowerCase().includes(q) ||
+      d.color_name?.toLowerCase().includes(q);
+  
     const filteredResults = detectionsByImage
-        .map(r => ({ ...r, detections: r.detections.filter(matches) }))
-        .filter(r => r.detections.length);
-
+      .map(r => ({ ...r, detections: r.detections.filter(matches) }))
+      .filter(r => r.detections.length);
+  
     const filteredRecs = recommendations
-        .map(r => ({ ...r, items: r.items.filter(matches) }))
-        .filter(r => r.items.length);
-
+      .map(r => ({ ...r, items: r.items.filter(matches) }))
+      .filter(r => r.items.length);
+  
     /* ---------- helpers UI (toggle) -------- */
     const toggleSection = (idx: number, rec: boolean) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        if (rec)
-            setOpenRecs(p => p.map((v, i) => (i === idx ? !v : v)));
-        else
-            setOpenImages(p => p.map((v, i) => (i === idx ? !v : v)));
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      if (rec)
+        setOpenRecs(p => p.map((v, i) => (i === idx ? !v : v)));
+      else
+        setOpenImages(p => p.map((v, i) => (i === idx ? !v : v)));
     };
     const toggleAll = () => {
-        const next = !expandAll;
-        setExpandAll(next);
-        setOpenImages(detectionsByImage.map(() => next));
-        setOpenRecs(recommendations.map(() => next));
+      const next = !expandAll;
+      setExpandAll(next);
+      setOpenImages(detectionsByImage.map(() => next));
+      setOpenRecs(recommendations.map(() => next));
     };
-
+  
     /* ------------- edit modal -------------- */
     const openEdit = (imgIdx: number, detIdx: number) => {
-        const det = detectionsByImage[imgIdx].detections[detIdx];
-        setEditImageIdx(imgIdx);
-        setEditDetIdx(detIdx);
-        setEditName(det.name);
-        setEditColor(det.color_name);
-        setEditVisible(true);
+      const det = detectionsByImage[imgIdx].detections[detIdx];
+      setEditImageIdx(imgIdx);
+      setEditDetIdx(detIdx);
+      setEditName(det.name);
+      setEditColor(det.color_name);
+      setEditVisible(true);
     };
     const applyEdit = () => {
-        setDetectionsByImage(prev => {
-            const next = [...prev];
-            next[editImageIdx] = {
-                ...next[editImageIdx],
-                detections: [...next[editImageIdx].detections],
-            };
-            next[editImageIdx].detections[editDetIdx].name = editName;
-            next[editImageIdx].detections[editDetIdx].color_name = editColor;
-            return next;
-        });
-        setEditVisible(false);
-        setTimeout(recalc, 0);
+      setDetectionsByImage(prev => {
+        const next = [...prev];
+        next[editImageIdx] = {
+          ...next[editImageIdx],
+          detections: [...next[editImageIdx].detections],
+        };
+        next[editImageIdx].detections[editDetIdx].name = editName;
+        next[editImageIdx].detections[editDetIdx].color_name = editColor;
+        return next;
+      });
+      setEditVisible(false);
+      setTimeout(recalc, 0);
     };
-
+  
     /* ------------- save dialog ------------- */
     const openSaveDialog = (rec: Recommendation) => {
-        setSaveRec(rec);
-        setSaveName(rec.method);
-        setSaveDate(new Date());
-        setSaveVisible(true);
+      setSaveRec(rec);
+      setSaveName(rec.method);
+      setSaveDate(new Date());
+      setSaveVisible(true);
     };
     const doSave = async () => {
-        if (!saveRec) return;
-        try {
-            setSaving(true);
-            await saveOutfit({
-                name: saveName || saveRec.method,
-                date: saveDate.toISOString(),
-                items: saveRec.items,
-                photo_uris: saveRec.items.map(i => i.uri),
-            });
-            setSaveVisible(false);
-            setSnackbar('Сохранено');
-        } catch (e) {
-            console.warn(e);
-            setSnackbar('Ошибка сохранения');
-        } finally {
-            setSaving(false);
-        }
+      if (!saveRec) return;
+      try {
+        setSaving(true);
+        await saveOutfit({
+          name: saveName || saveRec.method,
+          date: saveDate.toISOString(),
+          items: saveRec.items,
+          photo_uris: saveRec.items.map(i => i.uri),
+        });
+        setSaveVisible(false);
+        setSnackbar('Сохранено');
+      } catch (e) {
+        console.warn(e);
+        setSnackbar('Ошибка сохранения');
+      } finally {
+        setSaving(false);
+      }
     };
-
+  
     /* ---------------- render --------------- */
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="dark-content" />
-            <Searchbar
-                placeholder="Поиск по названию или цвету"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                style={styles.search}
-            />
-
-            {/* вкладки */}
-            <View style={styles.tabsContainer}>
-                {(['detections', 'recommendations'] as const).map(tab => (
-                    <TouchableOpacity
-                        key={tab}
-                        style={[styles.tab, selectedTab === tab && styles.tabActive]}
-                        onPress={() => setSelectedTab(tab)}
-                    >
-                        <Text
-                            style={[
-                                styles.tabText,
-                                selectedTab === tab && styles.tabTextActive,
-                            ]}
-                        >
-                            {tab === 'detections' ? 'Детекции' : 'Рекомендации'}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            {/* контент */}
-            <ScrollView
-                ref={scrollRef}
-                contentContainerStyle={styles.scrollContent}
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        <Searchbar
+          placeholder="Поиск по названию или цвету"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={styles.search}
+        />
+  
+        {/* вкладки */}
+        <View style={styles.tabsContainer}>
+          {(['detections', 'recommendations'] as const).map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, selectedTab === tab && styles.tabActive]}
+              onPress={() => setSelectedTab(tab)}
             >
-                {selectedTab === 'detections'
-                    ? /* ---------- DETECTIONS ---------- */
-                    filteredResults.map((r, imgIdx) => (
-                        <Card key={imgIdx} style={styles.card} mode="contained">
-                            <TouchableOpacity
-                                onPress={() => toggleSection(imgIdx, false)}
-                            >
-                                <View style={styles.cardHeader}>
-                                    <Text style={styles.sectionTitle}>
-                                        Изображение {imgIdx + 1} (
-                                        {r.detections.length})
-                                    </Text>
-                                    <AntDesign
-                                        name={openImages[imgIdx] ? 'down' : 'right'}
-                                        size={18}
-                                    />
-                                </View>
-                            </TouchableOpacity>
-                            {openImages[imgIdx] && (
-                                <View style={styles.cardBody}>
-                                    <Image
-                                        source={{ uri: r.uri }}
-                                        style={styles.fullImage}
-                                    />
-                                    {r.detections.map((det, detIdx) => (
-                                        <View
-                                            key={makeKey(det)}
-                                            style={styles.detectRow}
-                                        >
-                                            <Text style={styles.detectText}>
-                                                •{' '}
-                                                <Text style={styles.detectName}>
-                                                    {det.name}
-                                                </Text>{' '}
-                                                ({det.color_name})
-                                            </Text>
-                                            <Button
-                                                icon="pencil"
-                                                compact
-                                                onPress={() =>
-                                                    openEdit(imgIdx, detIdx)
-                                                }
-                                            />
-                                        </View>
-                                    ))}
-                                </View>
-                            )}
-                        </Card>
-                    ))
-                    : /* ---------- RECOMMENDATIONS ------ */
-                    filteredRecs.map((rec, idx) => (
-                        <Card key={idx} style={styles.card} mode="contained">
-                            <TouchableOpacity
-                                onPress={() => toggleSection(idx, true)}
-                            >
-                                <View style={styles.cardHeader}>
-                                    <View
-                                        style={[
-                                            styles.scoreBadge,
-                                            {
-                                                backgroundColor:
-                                                    rec.score >= 8
-                                                        ? '#4caf50'
-                                                        : rec.score >= 5
-                                                            ? '#ff9800'
-                                                            : '#f44336',
-                                            },
-                                        ]}
-                                    >
-                                        <Text style={styles.scoreText}>
-                                            {rec.score.toFixed(1)}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.sectionTitle}>
-                                        {rec.method}
-                                    </Text>
-
-                                    {/* кнопка «сохранить» */}
-                                    <Button
-                                        compact
-                                        icon="content-save-outline"
-                                        onPress={() => openSaveDialog(rec)}
-                                    />
-
-                                    <AntDesign
-                                        name={openRecs[idx] ? 'down' : 'right'}
-                                        size={18}
-                                    />
-                                </View>
-                            </TouchableOpacity>
-
-                            {openRecs[idx] && (
-                                <ScrollView
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    style={styles.flatList}
-                                >
-                                    {rec.items.map(it => {
-                                        const w = Math.min(
-                                            100,
-                                            it.bbox[2] - it.bbox[0],
-                                        );
-                                        const h = Math.min(
-                                            100,
-                                            it.bbox[3] - it.bbox[1],
-                                        );
-                                        return (
-                                            <View
-                                                key={makeKey(it)}
-                                                style={styles.outfitItem}
-                                            >
-                                                <Image
-                                                    source={{ uri: it.uri }}
-                                                    style={[
-                                                        styles.thumb,
-                                                        { width: w, height: h },
-                                                    ]}
-                                                />
-                                                <Text
-                                                    style={styles.itemText}
-                                                    numberOfLines={2}
-                                                >
-                                                    {it.name}
-                                                </Text>
-                                            </View>
-                                        );
-                                    })}
-                                </ScrollView>
-                            )}
-                        </Card>
-                    ))}
-            </ScrollView>
-
-            {/* FAB */}
-            <FAB
-                icon="arrow-up"
-                small
-                style={[styles.fab, { bottom: 16 }]}
-                onPress={() =>
-                    scrollRef.current?.scrollTo({ y: 0, animated: true })
-                }
-            />
-            <FAB
-                icon={() => (
-                    <AntDesign name="arrowsalt" size={22} color="#fff" />
-                )}
-                small
-                style={[styles.fab, { bottom: 78 }]}
-                onPress={toggleAll}
-            />
-
-            {/* ────────── Dialogs ────────── */}
-            <Portal>
-                {/* edit */}
-                <Dialog
-                    visible={editVisible}
-                    onDismiss={() => setEditVisible(false)}
-                >
-                    <Dialog.Title>Редактировать детекцию</Dialog.Title>
-                    <Dialog.Content>
-                        <Text style={{ marginBottom: 6 }}>Класс одежды</Text>
-                        <Picker
-                            selectedValue={editName}
-                            onValueChange={setEditName}
-                            style={{ marginBottom: 12 }}
-                        >
-                            {clothingOptions.map(c => (
-                                <Picker.Item key={c} label={c} value={c} />
-                            ))}
-                        </Picker>
-
-                        <Text style={{ marginBottom: 6 }}>Цвет</Text>
-                        <Picker
-                            selectedValue={editColor}
-                            onValueChange={setEditColor}
-                        >
-                            {colorOptions.map(c => (
-                                <Picker.Item key={c} label={c} value={c} />
-                            ))}
-                        </Picker>
-                    </Dialog.Content>
-                    <Dialog.Actions>
-                        <Button onPress={() => setEditVisible(false)}>
-                            Отмена
-                        </Button>
-                        <Button onPress={applyEdit}>Сохранить</Button>
-                    </Dialog.Actions>
-                </Dialog>
-
-                {/* save outfit */}
-                <Dialog
-                    visible={saveVisible}
-                    onDismiss={() => setSaveVisible(false)}
-                >
-                    <Dialog.Title>Сохранить лук</Dialog.Title>
-                    <Dialog.Content>
-                        <TextInput
-                            label="Название"
-                            mode="outlined"
-                            value={saveName}
-                            onChangeText={setSaveName}
-                            style={{ marginBottom: 12 }}
-                        />
-
-                        <Text style={{ marginBottom: 6 }}>Дата</Text>
-                        <DateTimePicker
-                            value={saveDate}
-                            mode="date"
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            onChange={(_, d) => d && setSaveDate(d)}
-                            style={{ alignSelf: 'flex-start' }}
-                        />
-                    </Dialog.Content>
-                    <Dialog.Actions>
-                        <Button onPress={() => setSaveVisible(false)}>
-                            Отмена
-                        </Button>
-                        <Button
-                            onPress={doSave}
-                            loading={saving}
-                            disabled={saving}
-                        >
-                            Сохранить
-                        </Button>
-                    </Dialog.Actions>
-                </Dialog>
-            </Portal>
-
-            <Snackbar
-                visible={!!snackbar}
-                onDismiss={() => setSnackbar(null)}
-                duration={2500}
-            >
-                {snackbar}
-            </Snackbar>
+              <Text
+                style={[
+                  styles.tabText,
+                  selectedTab === tab && styles.tabTextActive,
+                ]}
+              >
+                {tab === 'detections' ? 'Детекции' : 'Рекомендации'}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
+  
+        {/* контент */}
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {selectedTab === 'detections'
+            ? /* ---------- DETECTIONS ---------- */
+              filteredResults.map((r, imgIdx) => (
+                <Card key={imgIdx} style={styles.card} mode="contained">
+                  <TouchableOpacity
+                    onPress={() => toggleSection(imgIdx, false)}
+                  >
+                    <View style={styles.cardHeader}>
+                      <Text style={styles.sectionTitle}>
+                        Изображение {imgIdx + 1} (
+                        {r.detections.length})
+                      </Text>
+                      <AntDesign
+                        name={openImages[imgIdx] ? 'down' : 'right'}
+                        size={18}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  {openImages[imgIdx] && (
+                    <View style={styles.cardBody}>
+                      <Image
+                        source={{ uri: r.uri }}
+                        style={styles.fullImage}
+                      />
+                      {r.detections.map((det, detIdx) => (
+                        <View
+                          key={makeKey(det)}
+                          style={styles.detectRow}
+                        >
+                          <Text style={styles.detectText}>
+                            •{' '}
+                            <Text style={styles.detectName}>
+                              {det.name}
+                            </Text>{' '}
+                            ({det.color_name})
+                          </Text>
+                          <Button
+                            icon="pencil"
+                            compact
+                            onPress={() =>
+                              openEdit(imgIdx, detIdx)
+                            }
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </Card>
+              ))
+            : /* ---------- RECOMMENDATIONS ------ */
+              filteredRecs.map((rec, idx) => (
+                <Card key={idx} style={styles.card} mode="contained">
+                  <TouchableOpacity
+                    onPress={() => toggleSection(idx, true)}
+                  >
+                    <View style={styles.cardHeader}>
+                      <View
+                        style={[
+                          styles.scoreBadge,
+                          {
+                            backgroundColor:
+                              rec.score >= 8
+                                ? '#4caf50'
+                                : rec.score >= 5
+                                ? '#ff9800'
+                                : '#f44336',
+                          },
+                        ]}
+                      >
+                        <Text style={styles.scoreText}>
+                          {rec.score.toFixed(1)}
+                        </Text>
+                      </View>
+                      <Text style={styles.sectionTitle}>
+                        {rec.method}
+                      </Text>
+  
+                      {/* кнопка «сохранить» */}
+                      <Button
+                        compact
+                        icon="content-save-outline"
+                        onPress={() => openSaveDialog(rec)}
+                      />
+  
+                      <AntDesign
+                        name={openRecs[idx] ? 'down' : 'right'}
+                        size={18}
+                      />
+                    </View>
+                  </TouchableOpacity>
+  
+                  {openRecs[idx] && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.flatList}
+                    >
+                      {rec.items.map(it => {
+                        const w = Math.min(
+                          100,
+                          it.bbox[2] - it.bbox[0],
+                        );
+                        const h = Math.min(
+                          100,
+                          it.bbox[3] - it.bbox[1],
+                        );
+                        return (
+                          <View
+                            key={makeKey(it)}
+                            style={styles.outfitItem}
+                          >
+                            <Image
+                              source={{ uri: it.uri }}
+                              style={[
+                                styles.thumb,
+                                { width: w, height: h },
+                              ]}
+                            />
+                            <Text
+                              style={styles.itemText}
+                              numberOfLines={2}
+                            >
+                              {it.name}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+                </Card>
+              ))}
+        </ScrollView>
+  
+        {/* FAB */}
+        <FAB
+          icon="arrow-up"
+          small
+          style={[styles.fab, { bottom: 16 }]}
+          onPress={() =>
+            scrollRef.current?.scrollTo({ y: 0, animated: true })
+          }
+        />
+        <FAB
+          icon={() => (
+            <AntDesign name="arrowsalt" size={22} color="#fff" />
+          )}
+          small
+          style={[styles.fab, { bottom: 78 }]}
+          onPress={toggleAll}
+        />
+  
+        {/* ────────── Dialogs ────────── */}
+        <Portal>
+          {/* edit */}
+          <Dialog
+            visible={editVisible}
+            onDismiss={() => setEditVisible(false)}
+          >
+            <Dialog.Title>Редактировать детекцию</Dialog.Title>
+            <Dialog.Content>
+              <Text style={{ marginBottom: 6 }}>Класс одежды</Text>
+              <Picker
+                selectedValue={editName}
+                onValueChange={setEditName}
+                style={{ marginBottom: 12 }}
+              >
+                {clothingOptions.map(c => (
+                  <Picker.Item key={c} label={c} value={c} />
+                ))}
+              </Picker>
+  
+              <Text style={{ marginBottom: 6 }}>Цвет</Text>
+              <Picker
+                selectedValue={editColor}
+                onValueChange={setEditColor}
+              >
+                {colorOptions.map(c => (
+                  <Picker.Item key={c} label={c} value={c} />
+                ))}
+              </Picker>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setEditVisible(false)}>
+                Отмена
+              </Button>
+              <Button onPress={applyEdit}>Сохранить</Button>
+            </Dialog.Actions>
+          </Dialog>
+  
+          {/* save outfit */}
+          <Dialog
+            visible={saveVisible}
+            onDismiss={() => setSaveVisible(false)}
+          >
+            <Dialog.Title>Сохранить лук</Dialog.Title>
+            <Dialog.Content>
+              <TextInput
+                label="Название"
+                mode="outlined"
+                value={saveName}
+                onChangeText={setSaveName}
+                style={{ marginBottom: 12 }}
+              />
+  
+              <Text style={{ marginBottom: 6 }}>Дата</Text>
+              <DateTimePicker
+                value={saveDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(_, d) => d && setSaveDate(d)}
+                style={{ alignSelf: 'flex-start' }}
+              />
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setSaveVisible(false)}>
+                Отмена
+              </Button>
+              <Button
+                onPress={doSave}
+                loading={saving}
+                disabled={saving}
+              >
+                Сохранить
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+  
+        <Snackbar
+          visible={!!snackbar}
+          onDismiss={() => setSnackbar(null)}
+          duration={2500}
+        >
+          {snackbar}
+        </Snackbar>
+      </View>
     );
-}
-
-/* ──────────────── styles ─────────────── */
-const { width: screenW } = Dimensions.get('window');
-const styles = StyleSheet.create({
+  }
+  
+  /* ──────────────── styles ─────────────── */
+  const { width: screenW } = Dimensions.get('window');
+  const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#fafafa' },
     loadingContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     loadingText: { marginTop: 12, fontSize: 16, color: '#555' },
     search: { margin: 12, borderRadius: 24 },
     tabsContainer: {
-        flexDirection: 'row',
-        marginHorizontal: 12,
-        marginBottom: 8,
-        borderRadius: 24,
-        overflow: 'hidden',
-        backgroundColor: '#e0e0e0',
+      flexDirection: 'row',
+      marginHorizontal: 12,
+      marginBottom: 8,
+      borderRadius: 24,
+      overflow: 'hidden',
+      backgroundColor: '#e0e0e0',
     },
     tab: { flex: 1, paddingVertical: 8, alignItems: 'center' },
     tabActive: { backgroundColor: '#fff' },
@@ -532,50 +532,51 @@ const styles = StyleSheet.create({
     scrollContent: { paddingBottom: 120, paddingHorizontal: 12 },
     card: { marginVertical: 6, borderRadius: 12 },
     cardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: '#e6e6e6',
-        padding: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#e6e6e6',
+      padding: 12,
     },
     cardBody: { padding: 12 },
     sectionTitle: { fontSize: 17, fontWeight: '600', color: '#222' },
     fullImage: {
-        width: '100%',
-        height: 200,
-        borderRadius: 6,
-        backgroundColor: '#ccc',
-        marginBottom: 8,
+      width: '100%',
+      height: 200,
+      borderRadius: 6,
+      backgroundColor: '#ccc',
+      marginBottom: 8,
     },
     detectRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
     detectText: { fontSize: 15, color: '#555', flex: 1 },
     detectName: { fontWeight: '600' },
     flatList: { paddingVertical: 8 },
     outfitItem: {
-        marginRight: 16,
-        width: 100,
-        alignItems: 'center',
+      marginRight: 16,
+      width: 100,
+      alignItems: 'center',
     },
     thumb: {
-        borderRadius: 6,
-        backgroundColor: '#ddd',
-        marginBottom: 6,
+      borderRadius: 6,
+      backgroundColor: '#ddd',
+      marginBottom: 6,
     },
     itemText: { fontSize: 13, textAlign: 'center', color: '#333' },
     scoreBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-        marginRight: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginRight: 8,
     },
     scoreText: { color: '#fff', fontWeight: '600' },
     fab: {
-        position: 'absolute',
-        right: 16,
-        backgroundColor: '#6200ee',
+      position: 'absolute',
+      right: 16,
+      backgroundColor: '#6200ee',
     },
-});
+  });
+  

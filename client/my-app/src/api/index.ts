@@ -1,5 +1,7 @@
+// src/api/index.ts
 import axios from 'axios';
 import { API_URL } from './config';
+import http from './http';
 
 export interface DetectionItem {
     image_id: string;
@@ -11,11 +13,6 @@ export interface DetectionItem {
     color_name: string;
 }
 
-const client = axios.create({
-    baseURL: API_URL,
-    headers: { 'Content-Type': 'multipart/form-data' },
-});
-
 export async function detectImage(uri: string): Promise<DetectionItem[]> {
     const form = new FormData();
     form.append('file', {
@@ -24,7 +21,10 @@ export async function detectImage(uri: string): Promise<DetectionItem[]> {
         type: 'image/jpeg',
     } as any);
 
-    const res = await client.post<DetectionItem[]>('/detect', form);
+    // делаем POST на `/detect/`, http уже содержит Authorization
+    const res = await http.post<DetectionItem[]>('/detect/', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return res.data;
 }
 
@@ -52,10 +52,9 @@ export async function annotateImage(
 }
 
 export async function recommendOutfits(
-    detections: DetectionItem[]
-): Promise<any[]> {
-    const res = await axios.post(`${API_URL}/recommend`, { detections });
-    return res.data;
-}
-
+    detections: DetectionItem[],
+  ): Promise<any[]> {
+    const { data } = await http.post('/recommend/', { detections }); // <-- слэш!
+    return data;
+  }
 // при необходимости: alternatives, generate, edit

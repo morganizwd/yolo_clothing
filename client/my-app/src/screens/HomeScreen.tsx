@@ -56,12 +56,10 @@ export default function HomeScreen({ navigation }: any) {
                 allowsMultipleSelection: true,
                 quality: 0.8,
             });
-            if ('assets' in result) {
-                if (!result.canceled && result.assets.length > 0) {
-                    setUris(result.assets.map(a => a.uri));
-                    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
-                }
-            } else if (!result.cancelled) {
+            if ('assets' in result && !result.canceled && result.assets.length > 0) {
+                setUris(result.assets.map(a => a.uri));
+                setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+            } else if (!('assets' in result) && !result.cancelled) {
                 setUris([result.uri]);
                 setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
             }
@@ -142,6 +140,7 @@ export default function HomeScreen({ navigation }: any) {
                 )}
             </View>
 
+            {/* FAB-ы */}
             <Portal.Host>
                 <Portal>
                     <FAB
@@ -156,6 +155,12 @@ export default function HomeScreen({ navigation }: any) {
                         style={[styles.fab, { bottom: 20 }]}
                         onPress={handleDetectAll}
                         disabled={!uris.length || loading}
+                    />
+                    {/* Новая кнопка "Выйти" */}
+                    <FAB
+                        icon="logout"
+                        style={[styles.fab, { bottom: 160, backgroundColor: 'red' }]}
+                        onPress={() => navigation.navigate('Logout')}
                     />
                 </Portal>
             </Portal.Host>
@@ -196,5 +201,11 @@ const styles = StyleSheet.create({
         position: 'absolute',
         right: 16,
         backgroundColor: '#6200ee',
+    },
+    logoutButton: {
+        position: 'absolute',
+        right: 16,
+        bottom: 160,
+        backgroundColor: 'red',
     },
 });

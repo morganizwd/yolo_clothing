@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pymongo[srv]
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+Pillow
+torch
+opencv-python-headless
+numpy

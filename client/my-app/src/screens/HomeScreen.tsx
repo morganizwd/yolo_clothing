@@ -4,7 +4,6 @@ import {
     StyleSheet,
     Dimensions,
     ScrollView,
-    Alert,
     StatusBar,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,14 +30,16 @@ export default function HomeScreen({ navigation }: any) {
     const [snackbar, setSnackbar] = useState<string | null>(null);
     const scrollRef = useRef<ScrollView>(null);
 
-    // Header title
     useLayoutEffect(() => {
         navigation.setOptions({
-            header: () => <Appbar.Header><Appbar.Content title="Главная" /></Appbar.Header>,
+            header: () => (
+                <Appbar.Header>
+                    <Appbar.Content title="Главная" />
+                </Appbar.Header>
+            ),
         });
     }, [navigation]);
 
-    // Request permissions
     useEffect(() => {
         (async () => {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -48,7 +49,6 @@ export default function HomeScreen({ navigation }: any) {
         })();
     }, []);
 
-    // Pick images
     const pickImages = async () => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -58,7 +58,7 @@ export default function HomeScreen({ navigation }: any) {
             });
             if ('assets' in result) {
                 if (!result.canceled && result.assets.length > 0) {
-                    setUris(result.assets.map((a) => a.uri));
+                    setUris(result.assets.map(a => a.uri));
                     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
                 }
             } else if (!result.cancelled) {
@@ -71,7 +71,6 @@ export default function HomeScreen({ navigation }: any) {
         }
     };
 
-    // Detect all
     const handleDetectAll = async () => {
         if (uris.length === 0) {
             return setSnackbar('Выберите хотя бы одно фото');
@@ -96,6 +95,15 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
 
+            {/* Инструкция пользователю */}
+            <View style={styles.infoContainer}>
+                <Text>Добро пожаловать в демо-приложение по распознаванию одежды.</Text>
+                <Text>1. Нажмите "Выбрать фото" и загрузите не менее 15 фотографий ваших элементов гардероба.</Text>
+                <Text>2. Чем больше фото — тем точнее рекомендации.</Text>
+                <Text>3. После загрузки нажмите "Распознать все".</Text>
+                <Text>4. Результаты могут быть неточными — рассматривайте их как пример.</Text>
+            </View>
+
             <ScrollView
                 horizontal
                 ref={scrollRef}
@@ -103,7 +111,7 @@ export default function HomeScreen({ navigation }: any) {
                 style={styles.previewContainer}
                 contentContainerStyle={styles.previewContent}
             >
-                {uris.map((u) => (
+                {uris.map(u => (
                     <Card key={u} style={styles.previewCard}>
                         <Card.Cover source={{ uri: u }} style={styles.previewImage} />
                     </Card>
@@ -134,7 +142,6 @@ export default function HomeScreen({ navigation }: any) {
                 )}
             </View>
 
-            {/* Быстрые действия */}
             <Portal.Host>
                 <Portal>
                     <FAB
@@ -167,6 +174,12 @@ export default function HomeScreen({ navigation }: any) {
 const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#fafafa' },
+    infoContainer: {
+        padding: 16,
+        backgroundColor: '#e0f7fa',
+        margin: 12,
+        borderRadius: 8,
+    },
     previewContainer: { maxHeight: 140, marginVertical: 16 },
     previewContent: { paddingHorizontal: 12 },
     previewCard: { width: 120, marginRight: 12, borderRadius: 8, overflow: 'hidden' },

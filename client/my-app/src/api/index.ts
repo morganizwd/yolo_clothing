@@ -54,7 +54,13 @@ export async function annotateImage(
 export async function recommendOutfits(
     detections: DetectionItem[],
   ): Promise<any[]> {
-    const { data } = await http.post('/recommend/', { detections }); // <-- слэш!
-    return data;
+    try {
+      const { data } = await http.post('/recommend/', { detections });
+      return data;                       // 200 OK
+    } catch (err: any) {
+      // если это 400 – просто нет удачных комбинаций
+      if (err?.response?.status === 400) return [];
+      throw err;                         // остальные ошибки дальше вверх
+    }
   }
 // при необходимости: alternatives, generate, edit

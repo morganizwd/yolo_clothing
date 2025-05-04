@@ -1,0 +1,10 @@
+# Игнорировать фотофайлы
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.bmp
+*.tiff
+*.heic
+*.svg

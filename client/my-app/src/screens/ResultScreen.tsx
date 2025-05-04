@@ -84,17 +84,27 @@ export default function ResultScreen({ route, navigation }: any) {
 
     // функция пересчёта рекомендаций
     const recalc = async () => {
-        const rec = await recommendOutfits(allDetections);
-        const withUris = rec.map(r => ({
+        try {
+          const rec = await recommendOutfits(allDetections);
+      
+          /* как и раньше: дописываем uri к каждому item */
+          const withUris = rec.map(r => ({
             ...r,
             items: r.items.map(it => {
-                const orig = allDetections.find(d => d.index === it.index && d.image_id === it.image_id);
-                return { ...it, uri: orig?.uri || '' };
+              const orig = allDetections.find(
+                d => d.index === it.index && d.image_id === it.image_id,
+              );
+              return { ...it, uri: orig?.uri || '' };
             }),
-        }));
-        setRecommendations(withUris);
-        setOpenRecs(withUris.map(() => false));
-    };
+          }));
+      
+          setRecommendations(withUris);
+          setOpenRecs(withUris.map(() => false));
+        } catch (e) {
+          console.warn('recommendOutfits', e);
+          setRecommendations([]);   // показываем вкладку «Детекции»
+        }
+      };
 
     useEffect(() => { recalc() }, []);
 

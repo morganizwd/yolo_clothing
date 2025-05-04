@@ -1,23 +1,22 @@
-# app/routers/detect.py
-
+#touters/detect.py
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, status
 from typing import List, Tuple, Dict
-import io, uuid
+import io, uuid, math
 from PIL import Image
 import numpy as np
-import cv2
-import torch
+import cv2, torch
 
+from ..auth   import get_current_user
 from ..models import DetectionItem
-from ..auth import get_current_user
-from ..config import settings
+from ..db     import photos
+from ..utils import save_upload      
 
-# загружаем модель единожды
-YOLO_REPO = "C:/Users/morga/yolov5"
-WEIGHTS   = "C:/Users/morga/yolov5/runs/train/yolo_clothes3/weights/best.pt"
+# ───────────────────────── YOLOv5 ──────────────────────────
+YOLO_REPO = r"C:/Users/morga/yolov5"
+WEIGHTS   = r"C:/Users/morga/yolov5/runs/train/yolo_clothes3/weights/best.pt"
 model     = torch.hub.load(YOLO_REPO, "custom", path=WEIGHTS, source="local")
 
-# список популярных цветов
+# ───────────────────────── цвета ───────────────────────────
 popular_colors: Dict[str, Tuple[int, int, int]] = {  # 50 оттенков
     "белый": (255, 255, 255), "чёрный": (0, 0, 0), "красный": (255, 0, 0),
     "лаймовый": (0, 255, 0), "синий": (0, 0, 255), "жёлтый": (255, 255, 0),
@@ -37,65 +36,85 @@ popular_colors: Dict[str, Tuple[int, int, int]] = {  # 50 оттенков
     "горчичный": (255, 219, 88), "джинсовый": (21, 96, 189), "медный": (184, 115, 51),
     "бронзовый": (205, 127, 50), "оливково-серый": (107, 142, 35),
 }
-def rgb_to_lab(rgb):
+def rgb_to_lab(rgb):                                       # RGB→LAB
     return cv2.cvtColor(np.uint8([[list(rgb)]]), cv2.COLOR_RGB2LAB)[0][0]
-popular_lab = {n: rgb_to_lab(c) for n,c in popular_colors.items()}
+
+_popular_lab = {n: rgb_to_lab(c) for n, c in popular_colors.items()}
+
 def match_color(rgb):
     lab = rgb_to_lab(rgb)
-    if np.hypot(float(lab[1]), float(lab[2])) < 10:
+    if np.hypot(float(lab[1]), float(lab[2])) < 10:        # почти серое
         return "серый"
-    return min(popular_lab, key=lambda k: np.linalg.norm(lab - popular_lab[k]))
+    return min(_popular_lab, key=lambda n: np.linalg.norm(lab - _popular_lab[n]))
 
+# ───────────────────────── Router ──────────────────────────
 router = APIRouter(prefix="/detect", tags=["detect"])
 
 @router.post(
-    "/",
-    response_model=List[DetectionItem],
-    status_code=status.HTTP_200_OK,
-    summary="Детектировать одежду на изображении"
+    "/", response_model=List[DetectionItem],
+    summary="Детектировать одежду и сохранить снимок"
 )
 async def detect_clothes(
     file: UploadFile = File(...),
-    user = Depends(get_current_user)      # только авторизованные
+    user = Depends(get_current_user)
 ):
     """
-    Получает одно изображение, запускает YOLOv5, рассчитывает доминантный цвет
-    и возвращает список DetectionItem.
+    ‑ Сохраняет оригинал снимка в *static/user/<login>*.  
+    ‑ Запускает YOLOv5, вычисляет доминантный цвет.  
+    ‑ Сохраняет документ в MongoDB → коллекция **photos**.  
+    ‑ Возвращает список *DetectionItem* – сразу можно рисовать на клиенте.
     """
+
+   
+    uri_orig = save_upload(user.username, file)            # '/static/user/…/abc.jpg'
+
+   
+    file.file.seek(0)                                      # вернуть курсор к началу
+    data = file.file.read()
     try:
-        data = await file.read()
         img = Image.open(io.BytesIO(data)).convert("RGB")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Невозможно прочитать изображение")
+    except Exception as ex:
+        raise HTTPException(400, "Невозможно прочитать изображение") from ex
 
     np_img = np.array(img)
-    df = model(np_img).pandas().xyxy[0]   # Pandas DataFrame
+    df     = model(np_img).pandas().xyxy[0]
 
-    items: List[DetectionItem] = []
+   
+    dets: list[DetectionItem] = []
     unique_id = f"{file.filename}_{uuid.uuid4().hex[:8]}"
 
     for idx, row in df.iterrows():
-        x0,y0,x1,y1 = map(int, (row.xmin,row.ymin,row.xmax,row.ymax))
+        x0, y0, x1, y1 = map(int, (row.xmin, row.ymin, row.xmax, row.ymax))
         crop = np_img[y0:y1, x0:x1]
-        lab_pixels = cv2.cvtColor(crop, cv2.COLOR_RGB2LAB).reshape(-1,3).astype(np.float32)
-        _, labels, centers = cv2.kmeans(
+
+        # k‑means в LAB для доминантного цвета
+        lab_pixels = cv2.cvtColor(crop, cv2.COLOR_RGB2LAB)\
+                        .reshape(-1, 3).astype(np.float32)
+        _, lbl, ctr = cv2.kmeans(
             lab_pixels, 3, None,
-            (cv2.TERM_CRITERIA_EPS+cv2.TERM_CRITERIA_MAX_ITER,10,1.0),
+            (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0),
             10, cv2.KMEANS_RANDOM_CENTERS
         )
-        dominant = centers[np.argmax(np.bincount(labels.flatten()))]
+        dom_lab = ctr[np.argmax(np.bincount(lbl.flatten()))]
         dom_rgb = tuple(int(v) for v in cv2.cvtColor(
-            np.uint8([[dominant]]), cv2.COLOR_LAB2RGB
+            np.uint8([[dom_lab]]), cv2.COLOR_LAB2RGB
         )[0][0])
 
-        items.append(DetectionItem(
-            image_id=unique_id,
-            index=int(idx),
-            name=row['name'],
-            confidence=float(row['confidence']),
-            bbox=(x0,y0,x1,y1),
-            dominant_color=dom_rgb,
-            color_name=match_color(dom_rgb)
+        dets.append(DetectionItem(
+            image_id       = unique_id,
+            index          = int(idx),
+            name           = row["name"],
+            confidence     = float(row["confidence"]),
+            bbox           = (x0, y0, x1, y1),
+            dominant_color = dom_rgb,
+            color_name     = match_color(dom_rgb)
         ))
 
-    return items
+    
+    await photos.insert_one({
+        "user_id":     user.username,
+        "uri_orig":    uri_orig,
+        "detections":  [d.model_dump() for d in dets],
+    })
+
+    return dets

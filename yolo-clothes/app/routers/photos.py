@@ -1,7 +1,10 @@
+# routers/photos.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from bson import ObjectId
 from pathlib import Path
 from urllib.parse import unquote
+from typing import List
+from ..models import DetectionItem
 
 from ..db     import photos
 from ..auth   import get_current_user
@@ -37,3 +40,26 @@ async def remove_photo(photo_id: str, user = Depends(get_current_user)):
         abs_path.unlink(missing_ok=True)
 
     await photos.delete_one({"_id": ObjectId(photo_id)})
+
+@router.patch(
+    "/{photo_id}",
+    summary="Обновить список детекций для фото",
+    status_code=204,
+)
+async def update_detections(
+    photo_id: str,
+    detections: List[DetectionItem],
+    user = Depends(get_current_user),
+):
+    """
+    Заменяет поле `detections` в документе photo_id на новый массив.
+    """
+    obj_id = ObjectId(photo_id)
+    # проверим, что документ принадлежит пользователю
+    res = await photos.update_one(
+        {"_id": obj_id, "user_id": user.username},
+        {"$set": {"detections": [d.model_dump() for d in detections]}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return

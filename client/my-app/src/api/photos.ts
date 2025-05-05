@@ -1,3 +1,4 @@
+// api/photos.ts
 import http       from './http';
 import { API_URL } from './config';
 
@@ -31,4 +32,8 @@ export async function listPhotos(): Promise<SavedPhoto[]> {
 export async function deletePhoto(id: string) {
   if (!id) return;                 // нет _id → файл ещё не загружен на сервер
   await http.delete(`/photos/${id}`);
+}
+
+export async function updateDetections(photoId: string, detections: DetectionItem[]) {
+  await http.patch(`/photos/${photoId}`, detections);
 }

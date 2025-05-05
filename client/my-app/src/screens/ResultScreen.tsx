@@ -33,6 +33,7 @@ import { AntDesign, MaterialIcons } from '@expo/vector-icons';
 import { recommendOutfits, DetectionItem } from '../api';
 import { saveOutfit } from '../api/outfits';
 import { deletePhoto } from '../api/photos';
+import { updateDetections } from '../api/photos';
 
 if (
   Platform.OS === 'android' &&
@@ -172,21 +173,34 @@ export default function ResultScreen({ route, navigation }: any) {
     setEColor(d.color_name);
     setEditVis(true);
   };
-  const applyEdit = () => {
-    setImages(prev => {
-      const nxt = [...prev];
-      nxt[eImg] = {
-        ...nxt[eImg],
-        detections: [...nxt[eImg].detections],
-      };
-      nxt[eImg].detections[eDet] = {
-        ...nxt[eImg].detections[eDet],
-        name: eName,
-        color_name: eColor,
-      };
-      return nxt;
+  const applyEdit = async () => {
+    // 1. Построим новый список images целиком
+    const newImages = images.map((img, idx) => {
+      if (idx !== eImg) return img;
+      // клонируем с заменой нужной детекции
+      const newDets = img.detections.map((d, j) =>
+        j === eDet
+          ? { ...d, name: eName, color_name: eColor }
+          : d
+      );
+      return { ...img, detections: newDets };
     });
+
+    // 2. Сохраним в локальный стейт
+    setImages(newImages);
     setEditVis(false);
+
+    // 3. Если у фото есть _id, шлём PATCH с теми же новыми детекциями
+    const photo = newImages[eImg];
+    if (photo._id) {
+      try {
+        await updateDetections(photo._id, photo.detections);
+        setSnack('Изменения сохранены');
+      } catch (err) {
+        console.warn('updateDetections', err);
+        setSnack('Ошибка сохранения');
+      }
+    }
   };
 
   // delete single detection

@@ -142,8 +142,20 @@ export default function HomeScreen({ navigation }: any) {
           <Text variant="headlineMedium" style={styles.heroTitle}>
             Распознавание гардероба
           </Text>
+          <Text variant="headlineMedium" style={styles.heroTitle}>
+            FAQ
+          </Text>
           <Text variant="bodyMedium" style={styles.heroSubtitle}>
             Загрузите фото своих вещей, и мы подскажем идеи образов!
+          </Text>
+          <Text variant="bodyMedium" style={styles.heroSubtitle}>
+            Это демо версия приложения, поэтому распознавание может работать не достаточно корректно!
+          </Text>
+          <Text variant="bodyMedium" style={styles.heroSubtitle}>
+            Для лучшего результата рекомендуется загружать от 20 фотографий элементов вашего гардероба.
+          </Text>
+          <Text variant="bodyMedium" style={styles.heroSubtitle}>
+            Сейчас достпуны для распознавания: худи, штаны, куртки, футболки.
           </Text>
         </Animated.View>
       </LinearGradient>

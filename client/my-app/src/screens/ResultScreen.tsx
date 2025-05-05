@@ -412,7 +412,7 @@ export default function ResultScreen({ route, navigation }: any) {
           renderItem={({ item }) => (
             <Card style={styles.recCard}>
               <View style={styles.recHeader}>
-                <View
+                {/* <View
                   style={[
                     styles.scoreBadge,
                     {
@@ -428,7 +428,7 @@ export default function ResultScreen({ route, navigation }: any) {
                   <Text style={styles.scoreTxt}>
                     {item.score.toFixed(1)}
                   </Text>
-                </View>
+                </View> */}
                 <Text style={styles.recTitle}>
                   {item.method}
                 </Text>

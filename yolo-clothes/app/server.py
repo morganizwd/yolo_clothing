@@ -13,8 +13,7 @@ YOLO_REPO = "C:/Users/morga/yolov5"
 WEIGHTS   = "C:/Users/morga/yolov5/runs/train/yolo_clothes3/weights/best.pt"
 model     = torch.hub.load(YOLO_REPO, "custom", path=WEIGHTS, source="local")
 
-# ---------- цвета и конвертации ---------------------------------------------------
-popular_colors: Dict[str, Tuple[int, int, int]] = {  # 50 оттенков
+popular_colors: Dict[str, Tuple[int, int, int]] = {  
     "белый": (255, 255, 255), "чёрный": (0, 0, 0), "красный": (255, 0, 0),
     "лаймовый": (0, 255, 0), "синий": (0, 0, 255), "жёлтый": (255, 255, 0),
     "циан": (0, 255, 255), "магента": (255, 0, 255), "серебряный": (192, 192, 192),
@@ -40,7 +39,6 @@ def match_color(rgb):
     if math.hypot(float(lab[1]), float(lab[2])) < 10: return "серый"
     return min(popular_lab, key=lambda n: np.linalg.norm(lab - popular_lab[n]))
 
-# ---------- модели данных ---------------------------------------------------------
 class DetectionItem(BaseModel):
     image_id: str
     index: int
@@ -56,14 +54,13 @@ class RecommendResponse(BaseModel):
     score: float
     items: List[DetectionItem]
 
-# ---------- детекция --------------------------------------------------------------
 @app.post("/detect", response_model=List[DetectionItem])
 async def detect(file: UploadFile = File(...)):
     img = Image.open(io.BytesIO(await file.read())).convert("RGB")
     df  = model(np.array(img)).pandas().xyxy[0]
 
     items: List[DetectionItem] = []
-    unique_id = f"{file.filename}_{uuid.uuid4().hex[:8]}"         # <— УНИКАЛЬНО!
+    unique_id = f"{file.filename}_{uuid.uuid4().hex[:8]}"        
 
     for idx, row in df.iterrows():
         x0, y0, x1, y1 = map(int, (row.xmin, row.ymin, row.xmax, row.ymax))
@@ -86,7 +83,6 @@ async def detect(file: UploadFile = File(...)):
         ))
     return items
 
-# ---------- hue-утилиты и счётчики -------------------------------------------------
 def get_hue(rgb):
     lab = rgb_to_lab(rgb); h = math.degrees(math.atan2(float(lab[2]), float(lab[1])))
     return h + 360 if h < 0 else h
@@ -105,7 +101,6 @@ def score_complementary(c):
     return sum(abs(min(abs(a-b),360-abs(a-b))-180) for a in hs for b in hs if a!=b)/(len(hs)*(len(hs)-1))
 def score_random(c): return random.random()
 
-# ---------- рекомендация ----------------------------------------------------------
 @app.post("/recommend", response_model=List[RecommendResponse])
 async def recommend(req: RecommendRequest):
     by_cat={}
@@ -134,6 +129,5 @@ async def recommend(req: RecommendRequest):
     print('recommend ->', [(o.method,len(o.items)) for o in out])   # debug
     return out
 
-# -------------------------------------------------------------------------------
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

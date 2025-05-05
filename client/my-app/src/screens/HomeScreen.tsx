@@ -33,7 +33,6 @@ export default function HomeScreen({ navigation }: any) {
   const [syncing, setSyncing] = useState(false);
   const [snackbar, setSnackbar] = useState<string | null>(null);
 
-  /* обновляем список сохранённых фото при фокусе экрана */
   useFocusEffect(useCallback(() => {
     let mounted = true;
     (async () => {
@@ -50,7 +49,6 @@ export default function HomeScreen({ navigation }: any) {
     return () => { mounted = false; };
   }, []));
 
-  /* настраиваем Header */
   useLayoutEffect(() => {
     navigation.setOptions({
       header: () => (
@@ -61,7 +59,6 @@ export default function HomeScreen({ navigation }: any) {
     });
   }, [navigation]);
 
-  /* запрашиваем разрешения на галерею */
   useEffect(() => {
     (async () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -71,7 +68,6 @@ export default function HomeScreen({ navigation }: any) {
     })();
   }, []);
 
-  /* выбор фотографий */
   const pickImages = async () => {
     try {
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -88,7 +84,6 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-  /* распознаём все выбранные фото */
   const handleDetectAll = async () => {
     if (!uris.length) {
       setSnackbar('Выберите хотя бы одно фото');
@@ -102,7 +97,7 @@ export default function HomeScreen({ navigation }: any) {
         results.push({ uri, detections });
       }
       navigation.navigate('Result', { results });
-      // сразу сбрасываем выбор, чтобы превью исчезли при возврате
+    
       setUris([]);
     } catch (e: any) {
       setSnackbar(e.message || 'Что-то пошло не так');
@@ -111,19 +106,17 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-  /* открываем ранее сохранённые фото */
   const openSaved = () => {
     if (!saved.length) {
       setSnackbar('Нет сохранённых фото');
       return;
     }
     const results = saved.map(p => ({
-      _id: p._id,            // id нужен для возможности удалять на экране результатов
+      _id: p._id,          
       uri: p.uri_orig,
       detections: p.detections,
     }));
     navigation.navigate('Result', { results });
-    // сбрасываем текущее выделение
     setUris([]);
   };
 
@@ -131,7 +124,6 @@ export default function HomeScreen({ navigation }: any) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Hero-блок */}
       <LinearGradient
         colors={['#FF8A65', '#FF7043']}
         style={styles.hero}
@@ -160,7 +152,6 @@ export default function HomeScreen({ navigation }: any) {
         </Animated.View>
       </LinearGradient>
 
-      {/* Превью выбранных фото */}
       {uris.length > 0 && (
         <Animated.ScrollView
           horizontal
@@ -177,7 +168,6 @@ export default function HomeScreen({ navigation }: any) {
         </Animated.ScrollView>
       )}
 
-      {/* Основные кнопки */}
       <View style={styles.actionsContainer}>
         <Button
           mode="contained"
@@ -202,7 +192,6 @@ export default function HomeScreen({ navigation }: any) {
         </Button>
       </View>
 
-      {/* Нижнее меню FAB */}
       <Portal.Host>
         <View style={styles.fabDock}>
           <FAB
@@ -246,7 +235,6 @@ export default function HomeScreen({ navigation }: any) {
   );
 }
 
-/* ───────── стили ───────── */
 const { width } = Dimensions.get('window');
 const CARD_SIZE = width * 0.3;
 

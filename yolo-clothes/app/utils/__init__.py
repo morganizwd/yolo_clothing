@@ -1,8 +1,7 @@
 #utils/__init__.py
-# файловые функции
+
 from .files import save_upload
 
-# крипто‑функции
 from .security import (
     hash_password,
     verify_password,

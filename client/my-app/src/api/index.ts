@@ -21,7 +21,6 @@ export async function detectImage(uri: string): Promise<DetectionItem[]> {
         type: 'image/jpeg',
     } as any);
 
-    // делаем POST на `/detect/`, http уже содержит Authorization
     const res = await http.post<DetectionItem[]>('/detect/', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -40,14 +39,12 @@ export async function annotateImage(
     } as any);
 
     if (edits) {
-        // оборачиваем правки в JSON, чтобы FastAPI понял
         form.append('edits', JSON.stringify({ edits }));
     }
 
     const res = await client.post('/annotate', form, {
         responseType: 'blob',
     });
-    // создаём URL для <Image>
     return URL.createObjectURL(res.data);
 }
 
@@ -56,11 +53,9 @@ export async function recommendOutfits(
   ): Promise<any[]> {
     try {
       const { data } = await http.post('/recommend/', { detections });
-      return data;                       // 200 OK
+      return data;                      
     } catch (err: any) {
-      // если это 400 – просто нет удачных комбинаций
       if (err?.response?.status === 400) return [];
-      throw err;                         // остальные ошибки дальше вверх
+      throw err;                         
     }
   }
-// при необходимости: alternatives, generate, edit

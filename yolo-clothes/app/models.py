@@ -23,7 +23,7 @@ class RecommendResponse(BaseModel):
 class UserIn(BaseModel):
     """Что приходит от клиента при регистрации / логине"""
     username: str
-    password: str          # <-- открытый пароль (только во входящих запросах)
+    password: str         
 
 class UserInDB(BaseModel):
     """То, что мы реально храним в БД и передаём из get_current_user"""
@@ -39,12 +39,12 @@ class Photo(BaseModel):
     uri: str
 
 class OutfitIn(BaseModel):
-    name: str                  # «Деловой вторник»
-    date: datetime             # 2024‑06‑15
-    items: list[DetectionItem] # полный список из recommend
-    photo_uris: list[str]      # для превью (можно [] ← необязательно)
+    name: str                 
+    date: datetime           
+    items: list[DetectionItem] 
+    photo_uris: list[str]      
 
 class Outfit(OutfitIn):
     """Документ, который лежит в MongoDB"""
-    _id: str                   # ObjectId → str (заполняем в router)
-    user_id: str               # чей комплект
+    _id: str                
+    user_id: str              

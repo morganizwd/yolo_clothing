@@ -1,16 +1,15 @@
 # app/auth.py
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer         # ①
+from fastapi.security import OAuth2PasswordBearer      
 from jose import JWTError, jwt
 
 from .db import users
 from .config import settings
 from .models import UserInDB
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")  # ②
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login") 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
-    # --- валидация JWT ---------------------------------------------------------
     try:
         payload = jwt.decode(
             token,
@@ -23,7 +22,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    # --- вытаскиваем пользователя из БД ----------------------------------------
     user_doc = await users.find_one({"username": username})
     if user_doc is None:
         raise HTTPException(status_code=401, detail="User not found")

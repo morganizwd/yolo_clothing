@@ -22,7 +22,7 @@ export default function App() {
     bootstrapAuthHeader().then(setToken).finally(() => setReady(true));
   }, []);
 
-  if (!ready) return null; /* можно воткнуть Splash */
+  if (!ready) return null; 
 
   return (
     <PaperProvider>
@@ -30,7 +30,6 @@ export default function App() {
         <NavigationContainer>
           <SafeAreaView style={{ flex: 1, backgroundColor: '#fafafa' }}>
             {token ? (
-              /* ---- авторизованная часть ---- */
               <Stack.Navigator initialRouteName="Home">
                 <Stack.Screen
                   name="Home"
@@ -68,7 +67,6 @@ export default function App() {
                   
               </Stack.Navigator>
             ) : (
-              /* ---- стэк авторизации ---- */
               <Stack.Navigator screenOptions={{ headerShown: false }}>
                 <Stack.Screen
                   name="Auth"

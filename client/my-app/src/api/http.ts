@@ -8,7 +8,6 @@ const http = axios.create({
     headers: { 'Content-Type': 'application/json' },
 });
 
-// После входа (или при старте), чтобы установить заголовок во все последующие запросы:
 export async function bootstrapAuthHeader() {
     const token = await AsyncStorage.getItem('token');
     if (token) {

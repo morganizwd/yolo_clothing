@@ -42,7 +42,6 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/* ──────── helpers & types ──────── */
 type SingleResult = {
   _id?: string;
   uri: string;
@@ -55,18 +54,15 @@ type Rec = {
 };
 const keyDet = (d: DetectionItem) => `${d.image_id}-${d.index}`;
 
-/* ──────── constants ──────── */
 const clothes = ['hoodie', 'tshirt', 'pants', 'jacket'];
 const colors = [
   'белый', 'чёрный', 'красный', 'лаймовый', 'синий', 'жёлтый',
   'циан', 'магента', 'серый', 'зелёный',
 ];
 
-/* ──────── component ──────── */
 export default function ResultScreen({ route, navigation }: any) {
   const { results } = route.params as { results: SingleResult[] };
 
-  // state
   const [images, setImages] = useState<SingleResult[]>(() =>
     results.map(r => ({ ...r, detections: [...r.detections] }))
   );
@@ -76,14 +72,12 @@ export default function ResultScreen({ route, navigation }: any) {
   const [query, setQuery] = useState('');
   const [snack, setSnack] = useState<string | null>(null);
 
-  // edit dialog
   const [editVis, setEditVis] = useState(false);
   const [eImg, setEImg] = useState(0);
   const [eDet, setEDet] = useState(0);
   const [eName, setEName] = useState('');
   const [eColor, setEColor] = useState('');
 
-  // save dialog
   const [saveVis, setSaveVis] = useState(false);
   const [saveRec, setSaveRec] = useState<Rec | null>(null);
   const [saveName, setSaveName] = useState('');
@@ -92,7 +86,6 @@ export default function ResultScreen({ route, navigation }: any) {
 
   const listRef = useRef<FlatList>(null);
 
-  // header
   useLayoutEffect(() => {
     navigation.setOptions({
       title: 'Детекции и рекомендации',
@@ -100,7 +93,6 @@ export default function ResultScreen({ route, navigation }: any) {
     });
   }, [navigation]);
 
-  // rebuild recommendations when images change
   useEffect(() => {
     const allDet = images.flatMap(im =>
       im.detections.map(d => ({ ...d, uri: im.uri }))
@@ -130,7 +122,6 @@ export default function ResultScreen({ route, navigation }: any) {
     })();
   }, [images]);
 
-  // loading state
   if (recs === null) {
     return (
       <View style={styles.loading}>
@@ -140,14 +131,12 @@ export default function ResultScreen({ route, navigation }: any) {
     );
   }
 
-  // search filter
   const q = query.trim().toLowerCase();
   const match = (d: DetectionItem) =>
     !q ||
     d.name.toLowerCase().includes(q) ||
     d.color_name?.toLowerCase().includes(q);
 
-  // flattened detections
   const detData = images
     .flatMap((im, imgIdx) =>
       im.detections.map((d, detIdx) => ({
@@ -159,12 +148,10 @@ export default function ResultScreen({ route, navigation }: any) {
     )
     .filter(match);
 
-  // filtered recs
   const recData = recs
     .map(r => ({ ...r, items: r.items.filter(match) }))
     .filter(r => r.items.length);
 
-  // edit handlers
   const openEdit = (imgIdx: number, detIdx: number) => {
     const d = images[imgIdx].detections[detIdx];
     setEImg(imgIdx);
@@ -174,10 +161,8 @@ export default function ResultScreen({ route, navigation }: any) {
     setEditVis(true);
   };
   const applyEdit = async () => {
-    // 1. Построим новый список images целиком
     const newImages = images.map((img, idx) => {
       if (idx !== eImg) return img;
-      // клонируем с заменой нужной детекции
       const newDets = img.detections.map((d, j) =>
         j === eDet
           ? { ...d, name: eName, color_name: eColor }
@@ -186,11 +171,9 @@ export default function ResultScreen({ route, navigation }: any) {
       return { ...img, detections: newDets };
     });
 
-    // 2. Сохраним в локальный стейт
     setImages(newImages);
     setEditVis(false);
 
-    // 3. Если у фото есть _id, шлём PATCH с теми же новыми детекциями
     const photo = newImages[eImg];
     if (photo._id) {
       try {
@@ -203,7 +186,6 @@ export default function ResultScreen({ route, navigation }: any) {
     }
   };
 
-  // delete single detection
   const deleteDet = (imgIdx: number, detIdx: number) => {
     setImages(prev => {
       const nxt = [...prev];
@@ -212,7 +194,6 @@ export default function ResultScreen({ route, navigation }: any) {
       newDet.splice(detIdx, 1);
 
       if (newDet.length === 0) {
-        // если удаляем всё фото
         if (snap._id) {
           Alert.alert(
             'Удалить фото?',
@@ -248,7 +229,6 @@ export default function ResultScreen({ route, navigation }: any) {
     });
   };
 
-  // delete all detections & photos
   const deleteAll = () => {
     if (!images.length) return setSnack('Нечего удалять');
     Alert.alert(
@@ -260,14 +240,12 @@ export default function ResultScreen({ route, navigation }: any) {
           text: 'Удалить всё',
           style: 'destructive',
           onPress: async () => {
-            // удаляем все на сервере
             for (const snap of images) {
               if (snap._id) {
                 try { await deletePhoto(snap._id); }
                 catch { }
               }
             }
-            // очищаем UI
             setImages([]);
             setSnack('Все удалено');
           },
@@ -276,7 +254,6 @@ export default function ResultScreen({ route, navigation }: any) {
     );
   };
 
-  // save outfit
   const openSave = (r: Rec) => {
     setSaveRec(r);
     setSaveName(r.method);
@@ -302,7 +279,6 @@ export default function ResultScreen({ route, navigation }: any) {
     }
   };
 
-  // grid dimensions
   const GAP = 12,
     COLS = 2;
   const ITEM_W =
@@ -412,23 +388,6 @@ export default function ResultScreen({ route, navigation }: any) {
           renderItem={({ item }) => (
             <Card style={styles.recCard}>
               <View style={styles.recHeader}>
-                {/* <View
-                  style={[
-                    styles.scoreBadge,
-                    {
-                      backgroundColor:
-                        item.score >= 8
-                          ? '#4caf50'
-                          : item.score >= 5
-                            ? '#ff9800'
-                            : '#f44336',
-                    },
-                  ]}
-                >
-                  <Text style={styles.scoreTxt}>
-                    {item.score.toFixed(1)}
-                  </Text>
-                </View> */}
                 <Text style={styles.recTitle}>
                   {item.method}
                 </Text>
@@ -474,7 +433,6 @@ export default function ResultScreen({ route, navigation }: any) {
         />
       )}
 
-      {/* кнопка вверх */}
       <FAB
         icon="arrow-up"
         small
@@ -487,7 +445,6 @@ export default function ResultScreen({ route, navigation }: any) {
         style={styles.fab}
       />
 
-      {/* новая кнопка: удалить все */}
       <FAB
         icon="delete-sweep"
         small
@@ -496,7 +453,6 @@ export default function ResultScreen({ route, navigation }: any) {
       />
 
       <Portal>
-        {/* Edit Dialog */}
         <Dialog
           visible={editVis}
           onDismiss={() => setEditVis(false)}
@@ -538,7 +494,6 @@ export default function ResultScreen({ route, navigation }: any) {
           </Dialog.Actions>
         </Dialog>
 
-        {/* Save Dialog */}
         <Dialog
           visible={saveVis}
           onDismiss={() => setSaveVis(false)}

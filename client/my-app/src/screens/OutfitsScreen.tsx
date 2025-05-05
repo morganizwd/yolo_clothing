@@ -22,7 +22,6 @@ export default function OutfitsScreen({ navigation }: any) {
   const [outfits, setOutfits] = useState<OutfitDoc[] | null>(null);
   const [snackbar, setSnackbar] = useState<string | null>(null);
 
-  /* header */
   useEffect(() => {
     navigation.setOptions({
       header: () => (
@@ -34,7 +33,6 @@ export default function OutfitsScreen({ navigation }: any) {
     });
   }, [navigation]);
 
-  /* load */
   const load = async () => {
     try {
       const data = await listOutfits();
@@ -49,7 +47,6 @@ export default function OutfitsScreen({ navigation }: any) {
     load();
   }, []);
 
-  /* delete */
   const onDelete = async (id: string) => {
     try {
       await deleteOutfit(id);
@@ -60,7 +57,6 @@ export default function OutfitsScreen({ navigation }: any) {
     }
   };
 
-  /* loading */
   if (!outfits) {
     return (
       <View style={s.center}>
@@ -69,7 +65,6 @@ export default function OutfitsScreen({ navigation }: any) {
     );
   }
 
-  /* empty */
   if (outfits.length === 0) {
     return (
       <View style={s.center}>
@@ -78,7 +73,6 @@ export default function OutfitsScreen({ navigation }: any) {
     );
   }
 
-  /* render */
   return (
     <ScrollView contentContainerStyle={s.scroll}>
       {outfits.map(o => (
@@ -121,7 +115,6 @@ export default function OutfitsScreen({ navigation }: any) {
   );
 }
 
-/* styles */
 const { width } = Dimensions.get('window');
 const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

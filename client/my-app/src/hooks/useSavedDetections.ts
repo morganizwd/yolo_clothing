@@ -1,6 +1,6 @@
 // src/hooks/useSavedDetections.ts
 import { useEffect, useState } from 'react';
-import { listPhotos, SavedPhoto } from '../api/photos';     // уже есть
+import { listPhotos, SavedPhoto } from '../api/photos';   
 import { DetectionItem } from '../api';
 
 export function useSavedDetections() {
@@ -21,7 +21,5 @@ export function useSavedDetections() {
         })();
     }, []);
 
-    /** если данные ещё грузятся — вернём пустой массив,
-        пусть UI сам покажет крутилку */
     return loaded ? items : [];
 }

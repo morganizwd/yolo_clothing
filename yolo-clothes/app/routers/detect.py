@@ -11,13 +11,11 @@ from ..models import DetectionItem
 from ..db     import photos
 from ..utils import save_upload      
 
-# ───────────────────────── YOLOv5 ──────────────────────────
 YOLO_REPO = r"C:/Users/morga/yolov5"
 WEIGHTS   = r"C:/Users/morga/yolov5/runs/train/yolo_clothes3/weights/best.pt"
 model     = torch.hub.load(YOLO_REPO, "custom", path=WEIGHTS, source="local")
 
-# ───────────────────────── цвета ───────────────────────────
-popular_colors: Dict[str, Tuple[int, int, int]] = {  # 50 оттенков
+popular_colors: Dict[str, Tuple[int, int, int]] = { 
     "белый": (255, 255, 255), "чёрный": (0, 0, 0), "красный": (255, 0, 0),
     "лаймовый": (0, 255, 0), "синий": (0, 0, 255), "жёлтый": (255, 255, 0),
     "циан": (0, 255, 255), "магента": (255, 0, 255), "серебряный": (192, 192, 192),
@@ -36,18 +34,17 @@ popular_colors: Dict[str, Tuple[int, int, int]] = {  # 50 оттенков
     "горчичный": (255, 219, 88), "джинсовый": (21, 96, 189), "медный": (184, 115, 51),
     "бронзовый": (205, 127, 50), "оливково-серый": (107, 142, 35),
 }
-def rgb_to_lab(rgb):                                       # RGB→LAB
+def rgb_to_lab(rgb):                                      
     return cv2.cvtColor(np.uint8([[list(rgb)]]), cv2.COLOR_RGB2LAB)[0][0]
 
 _popular_lab = {n: rgb_to_lab(c) for n, c in popular_colors.items()}
 
 def match_color(rgb):
     lab = rgb_to_lab(rgb)
-    if np.hypot(float(lab[1]), float(lab[2])) < 10:        # почти серое
+    if np.hypot(float(lab[1]), float(lab[2])) < 10:        
         return "серый"
     return min(_popular_lab, key=lambda n: np.linalg.norm(lab - _popular_lab[n]))
 
-# ───────────────────────── Router ──────────────────────────
 router = APIRouter(prefix="/detect", tags=["detect"])
 
 @router.post(
@@ -58,18 +55,11 @@ async def detect_clothes(
     file: UploadFile = File(...),
     user = Depends(get_current_user)
 ):
-    """
-    ‑ Сохраняет оригинал снимка в *static/user/<login>*.  
-    ‑ Запускает YOLOv5, вычисляет доминантный цвет.  
-    ‑ Сохраняет документ в MongoDB → коллекция **photos**.  
-    ‑ Возвращает список *DetectionItem* – сразу можно рисовать на клиенте.
-    """
+
+    uri_orig = save_upload(user.username, file)            
 
    
-    uri_orig = save_upload(user.username, file)            # '/static/user/…/abc.jpg'
-
-   
-    file.file.seek(0)                                      # вернуть курсор к началу
+    file.file.seek(0)                                     
     data = file.file.read()
     try:
         img = Image.open(io.BytesIO(data)).convert("RGB")

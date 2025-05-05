@@ -20,9 +20,9 @@ async def save_outfit(req: OutfitRequest, user = Depends(get_current_user)):
 @router.get("/", summary="Все луки пользователя")
 async def list_outfits(user = Depends(get_current_user)):
     docs = await outfits.find({"user_id": user.username}).to_list(1_000)
-    for d in docs:                         # ObjectId → str
+    for d in docs:                        
         d["_id"] = str(d["_id"])
-    return docs                            # ✦ без response_model
+    return docs                          
 
 
 @router.delete("/{oid}", status_code=204)

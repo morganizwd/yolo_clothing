@@ -8,14 +8,14 @@ from ..models import DetectionItem
 
 from ..db     import photos
 from ..auth   import get_current_user
-from ..config import STATIC_DIR                # <‑ ../static
+from ..config import STATIC_DIR               
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 
 @router.get("/")
 async def list_photos(user = Depends(get_current_user)):
     docs = await photos.find({"user_id": user.username}).to_list(1000)
-    for d in docs:           # ObjectId‑>str (удобно клиенту)
+    for d in docs:         
         d["_id"] = str(d["_id"])
     return docs
 
@@ -28,14 +28,13 @@ async def remove_photo(photo_id: str, user = Depends(get_current_user)):
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
-    # uri_orig →  static/user/<login>/abc.jpg
-    rel = Path(unquote(doc["uri_orig"].lstrip("/")))          # Path('static/user/…')
+    rel = Path(unquote(doc["uri_orig"].lstrip("/")))       
     try:
-        rel_in_static = rel.relative_to("static")             # user/<login>/abc.jpg
+        rel_in_static = rel.relative_to("static")           
     except ValueError:
         rel_in_static = rel                                   
 
-    abs_path = (STATIC_DIR / rel_in_static).resolve()         # …/static/user/…/abc.jpg
+    abs_path = (STATIC_DIR / rel_in_static).resolve()       
     if abs_path.is_file():
         abs_path.unlink(missing_ok=True)
 
@@ -55,7 +54,7 @@ async def update_detections(
     Заменяет поле `detections` в документе photo_id на новый массив.
     """
     obj_id = ObjectId(photo_id)
-    # проверим, что документ принадлежит пользователю
+
     res = await photos.update_one(
         {"_id": obj_id, "user_id": user.username},
         {"$set": {"detections": [d.model_dump() for d in detections]}},

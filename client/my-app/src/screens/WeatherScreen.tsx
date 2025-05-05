@@ -26,20 +26,16 @@ import { useSavedDetections } from '../hooks/useSavedDetections';
 import { getWeatherByCoords } from '../api/weather';
 import { recommendOutfits, DetectionItem } from '../api';
 
-/* ────── types ────── */
 type Recommendation = {
     method: string;
     score: number;
     items: (DetectionItem & { uri: string })[];
 };
 
-/* ────── helpers ────── */
 const getWeatherIcon = (t: number) =>
     t >= 20 ? 'weather-sunny' : t >= 10 ? 'weather-partly-cloudy' : 'weather-snowy';
 
-/* ==================================================== */
 export default function WeatherScreen({ navigation }: any) {
-    /* state */
     const [city, setCity] = useState('');
     const [busy, setBusy] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
@@ -55,7 +51,6 @@ export default function WeatherScreen({ navigation }: any) {
 
     const saved = useSavedDetections();
 
-    /* header */
     useLayoutEffect(() => {
         navigation.setOptions({
             header: () => (
@@ -67,7 +62,6 @@ export default function WeatherScreen({ navigation }: any) {
         });
     }, [navigation]);
 
-    /* animation */
     const fade = useRef(new Animated.Value(0)).current;
     const animateIn = () => {
         fade.setValue(0);
@@ -79,27 +73,22 @@ export default function WeatherScreen({ navigation }: any) {
         }).start();
     };
 
-    /* main action */
     const onSubmit = async () => {
         if (!city) return setToast('Введите город');
         try {
             setBusy(true);
 
-            /* ── geocode ── */
             const [geo] = await Location.geocodeAsync(city);
             if (!geo) throw new Error('Город не найден');
             const { latitude: lat, longitude: lon } = geo;
 
-            /* human‑readable название */
             const [rev] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
             const title = [rev.city || rev.name, rev.region, rev.country]
                 .filter(Boolean)
                 .join(', ');
 
-            /* температура */
             const temp = await getWeatherByCoords(lat, lon);
 
-            /* правило */
             let need: string[], note: string;
             if (temp >= 20) {
                 need = ['tshirt', 'pants'];
@@ -112,11 +101,9 @@ export default function WeatherScreen({ navigation }: any) {
                 note = 'Холодно — пригодятся худи и куртка';
             }
 
-            /* фильтр гардероба */
             const pool = saved.filter((d) => need.includes(d.name));
             if (!pool.length) throw new Error('В гардеробе нет подходящих вещей');
 
-            /* рекомендации */
             const resp = await recommendOutfits(pool);
             const withUris = resp.map((r) => ({
                 ...r,
@@ -137,14 +124,12 @@ export default function WeatherScreen({ navigation }: any) {
         }
     };
 
-    /* render */
     return (
         <KeyboardAvoidingView
             style={styles.root}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <ScrollView contentContainerStyle={{ padding: 24 }}>
-                {/* input */}
                 <TextInput
                     label="Город"
                     value={city}
@@ -160,7 +145,6 @@ export default function WeatherScreen({ navigation }: any) {
                     </Button>
                 )}
 
-                {/* result */}
                 {place && recs && (
                     <Animated.View
                         style={[
@@ -179,7 +163,6 @@ export default function WeatherScreen({ navigation }: any) {
                         ]}
                     >
                         <Card style={styles.card}>
-                            {/* hero */}
                             <View style={styles.hero}>
                                 <Image
                                     style={styles.map}
@@ -203,13 +186,11 @@ export default function WeatherScreen({ navigation }: any) {
                                 </View>
                             </View>
 
-                            {/* название города / пояснение */}
                             <Card.Content style={styles.titleBox}>
                                 <Text style={styles.city}>{place.title}</Text>
                                 <Text style={styles.note}>{place.note}</Text>
                             </Card.Content>
 
-                            {/* outfits */}
                             <Card.Content style={{ paddingBottom: 12 }}>
                                 {recs.map((r) => (
                                     <View key={r.method} style={{ marginTop: 18 }}>
@@ -240,11 +221,9 @@ export default function WeatherScreen({ navigation }: any) {
     );
 }
 
-/* ────── styles ────── */
 const styles = StyleSheet.create({
     root: { flex: 1, backgroundColor: '#fafafa' },
 
-    /* отступ между кнопкой и карточкой */
     result: { marginTop: 24 },
 
     card: {
@@ -266,14 +245,13 @@ const styles = StyleSheet.create({
     },
     tempTxt: { fontSize: 42, color: '#fff', fontWeight: '700' },
 
-    /* блок названия и пояснения */
     titleBox: { paddingTop: 16 },
     city: {
         fontSize: 20,
         fontWeight: '600',
         marginBottom: 4,
         lineHeight: 24,
-        flexShrink: 1,              // <<< — позволяет заголовку переноситься
+        flexShrink: 1,
     },
     note: { fontSize: 15, color: '#555' },
 

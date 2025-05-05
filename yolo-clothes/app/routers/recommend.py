@@ -8,7 +8,6 @@ from ..auth import get_current_user
 
 router = APIRouter(prefix="/recommend", tags=["recommend"])
 
-# вспомогательные функции для подсчёта hue
 def rgb_to_lab(rgb):
     import cv2, numpy as np
     return cv2.cvtColor(np.uint8([[list(rgb)]]), cv2.COLOR_RGB2LAB)[0][0]
@@ -45,19 +44,14 @@ def score_random(combo): return random.random()
 )
 async def recommend_outfits(
     req: RecommendRequest,
-    user = Depends(get_current_user)     # только авторизованные
+    user = Depends(get_current_user)     
 ):
-    """
-    На вход получает список DetectionItem (из /detect).
-    Формирует все уникальные сочетания и выбирает лучшие по разным стратегиям.
-    """
     by_cat: dict[str, list[DetectionItem]] = {}
     for det in req.detections:
         by_cat.setdefault(det.name, []).append(det)
 
-    # все декартовы произведения
     combos = list(itertools.product(*by_cat.values()))
-    # отсекаем те, где один и тот же кадр повторяется
+  
     def key(i: DetectionItem): return (i.image_id, i.index)
     unique = [c for c in combos if len({key(i) for i in c}) == len(c)]
     if not unique:

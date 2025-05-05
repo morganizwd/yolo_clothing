@@ -104,10 +104,26 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   /* ───────── open saved */
-  const openSaved = () => {
-    if (!saved.length) return;
-    const results = saved.map(p => ({ uri: p.uri_orig, detections: p.detections }));
-    navigation.navigate('Result', { results });
+  const openSaved = async () => {
+    setSyncing(true);
+    try {
+      const fresh = await listPhotos();
+      if (fresh.length === 0) {
+        setSnackbar('Нет сохранённых фото');
+        return;
+      }
+      const results = fresh.map(p => ({
+        _id: p._id,               // чтобы в ResultScreen знали id для deletePhoto
+        uri: p.uri_orig,
+        detections: p.detections,
+      }));
+      navigation.navigate('Result', { results });
+    } catch (e) {
+      console.warn(e);
+      setSnackbar('Не удалось загрузить фото');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   /* ───────── render */

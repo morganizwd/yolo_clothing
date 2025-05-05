@@ -6,7 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  LayoutAnimation,
+  Alert,
   UIManager,
   Dimensions,
   StatusBar,
@@ -27,129 +27,216 @@ import {
 } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, MaterialIcons } from '@expo/vector-icons';
 
 import { recommendOutfits, DetectionItem } from '../api';
 import { saveOutfit } from '../api/outfits';
+import { deletePhoto } from '../api/photos';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/* ---------- types & helpers ---------- */
-type SingleResult = { uri: string; detections: DetectionItem[] };
-type Rec = { method: string; score: number; items: (DetectionItem & { uri: string })[] };
-const makeKey = (d: DetectionItem) => `${d.image_id}-${d.index}`;
+/* ──────── helpers & types ──────── */
+type SingleResult = {
+  _id?: string;
+  uri: string;
+  detections: DetectionItem[];
+};
+type Rec = {
+  method: string;
+  score: number;
+  items: (DetectionItem & { uri: string })[];
+};
+const keyDet = (d: DetectionItem) => `${d.image_id}-${d.index}`;
 
-/* ---------- constants ---------- */
-const clothingOptions = ['hoodie', 'tshirt', 'pants', 'jacket'];
-const colorOptions = ['белый', 'чёрный', 'красный', 'лаймовый', 'синий', 'жёлтый', 'циан', 'магента', 'серый', 'зелёный'];
+/* ──────── constants ──────── */
+const clothes = ['hoodie', 'tshirt', 'pants', 'jacket'];
+const colors = [
+  'белый', 'чёрный', 'красный', 'лаймовый', 'синий', 'жёлтый',
+  'циан', 'магента', 'серый', 'зелёный',
+];
 
+/* ──────── component ──────── */
 export default function ResultScreen({ route, navigation }: any) {
   const { results } = route.params as { results: SingleResult[] };
 
-  /* ---------- state ---------- */
-  const [detectionsByImage, setDetectionsByImage] = useState<SingleResult[]>(() =>
-    results.map(r => ({ ...r, detections: [...r.detections] })),
+  // state
+  const [images, setImages] = useState<SingleResult[]>(() =>
+    results.map(r => ({ ...r, detections: [...r.detections] }))
   );
   const [recs, setRecs] = useState<Rec[] | null>(null);
 
   const [tab, setTab] = useState<'det' | 'rec'>('rec');
-  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
   const [snack, setSnack] = useState<string | null>(null);
 
-  /* edit dialog */
+  // edit dialog
   const [editVis, setEditVis] = useState(false);
-  const [editImgIdx, setEditImgIdx] = useState(0);
-  const [editDetIdx, setEditDetIdx] = useState(0);
-  const [editName, setEditName] = useState('');
-  const [editColor, setEditColor] = useState('');
+  const [eImg, setEImg] = useState(0);
+  const [eDet, setEDet] = useState(0);
+  const [eName, setEName] = useState('');
+  const [eColor, setEColor] = useState('');
 
-  /* save dialog */
+  // save dialog
   const [saveVis, setSaveVis] = useState(false);
   const [saveRec, setSaveRec] = useState<Rec | null>(null);
   const [saveName, setSaveName] = useState('');
   const [saveDate, setSaveDate] = useState(new Date());
   const [saving, setSaving] = useState(false);
 
-  /* refs */
   const listRef = useRef<FlatList>(null);
 
-  /* ---------- header ---------- */
+  // header
   useLayoutEffect(() => {
-    navigation.setOptions({ title: 'Детекции и рекомендации', headerBackTitle: 'Назад' });
+    navigation.setOptions({
+      title: 'Детекции и рекомендации',
+      headerBackTitle: 'Назад',
+    });
   }, [navigation]);
 
-  /* ---------- make recommendations ---------- */
-  const allDet = detectionsByImage.flatMap(im => im.detections.map(d => ({ ...d, uri: im.uri })));
-
-  const buildRecs = async () => {
-    try {
-      const r = await recommendOutfits(allDet);
-      setRecs(r.map(rec => ({
-        ...rec,
-        items: rec.items.map(it => {
-          const src = allDet.find(x => x.image_id === it.image_id && x.index === it.index);
-          return { ...it, uri: src?.uri ?? '' };
-        }),
-      })));
-    } catch (e) {
-      console.warn(e);
+  // build recommendations whenever `images` change
+  useEffect(() => {
+    const allDet = images.flatMap(im =>
+      im.detections.map(d => ({ ...d, uri: im.uri }))
+    );
+    if (allDet.length === 0) {
       setRecs([]);
+      return;
     }
-  };
-  useEffect(() => { buildRecs(); /* eslint-disable-line */ }, []);
+    (async () => {
+      try {
+        const r = await recommendOutfits(allDet);
+        setRecs(
+          r.map(rec => ({
+            ...rec,
+            items: rec.items.map(it => {
+              const src = allDet.find(
+                x => x.image_id === it.image_id && x.index === it.index
+              );
+              return { ...it, uri: src?.uri ?? '' };
+            }),
+          }))
+        );
+      } catch (err) {
+        console.warn(err);
+        setRecs([]);
+      }
+    })();
+  }, [images]);
 
-  if (!recs) {
+  // loading state
+  if (recs === null) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator />
-        <Text style={{ marginTop: 12 }}>Генерируем рекомендации…</Text>
+        <Text style={{ marginTop: 12 }}>Генерируем…</Text>
       </View>
     );
   }
 
-  /* ---------- search filter ---------- */
-  const q = search.trim().toLowerCase();
-  const match = (d: DetectionItem) => !q || d.name.toLowerCase().includes(q) ||
+  // search filter
+  const q = query.trim().toLowerCase();
+  const match = (d: DetectionItem) =>
+    !q ||
+    d.name.toLowerCase().includes(q) ||
     d.color_name?.toLowerCase().includes(q);
 
-  /* detections flattened + index refs */
-  const detData = detectionsByImage.flatMap((im, imgIndex) =>
-    im.detections.map((d, detIdx) => ({
-      ...d,
-      uri: im.uri,
-      imgIndex,
-      detIdx,
-    })),
-  ).filter(match);
+  // flattened detections
+  const detData = images
+    .flatMap((im, imgIdx) =>
+      im.detections.map((d, detIdx) => ({
+        ...d,
+        uri: im.uri,
+        imgIdx,
+        detIdx,
+      }))
+    )
+    .filter(match);
 
-  const recData = recs.map(r => ({
-    ...r,
-    items: r.items.filter(match),
-  })).filter(r => r.items.length);
+  // filtered recs
+  const recData = recs
+    .map(r => ({ ...r, items: r.items.filter(match) }))
+    .filter(r => r.items.length);
 
-  /* ---------- edit dialog ---------- */
-  const startEdit = (imgIdx: number, detIdx: number) => {
-    const det = detectionsByImage[imgIdx].detections[detIdx];
-    setEditImgIdx(imgIdx); setEditDetIdx(detIdx);
-    setEditName(det.name); setEditColor(det.color_name);
+  // edit handlers
+  const openEdit = (imgIdx: number, detIdx: number) => {
+    const d = images[imgIdx].detections[detIdx];
+    setEImg(imgIdx);
+    setEDet(detIdx);
+    setEName(d.name);
+    setEColor(d.color_name);
     setEditVis(true);
   };
   const applyEdit = () => {
-    setDetectionsByImage(p => {
-      const next = [...p];
-      next[editImgIdx] = { ...next[editImgIdx], detections: [...next[editImgIdx].detections] };
-      next[editImgIdx].detections[editDetIdx].name = editName;
-      next[editImgIdx].detections[editDetIdx].color_name = editColor;
-      return next;
+    setImages(prev => {
+      const nxt = [...prev];
+      nxt[eImg] = {
+        ...nxt[eImg],
+        detections: [...nxt[eImg].detections],
+      };
+      nxt[eImg].detections[eDet] = {
+        ...nxt[eImg].detections[eDet],
+        name: eName,
+        color_name: eColor,
+      };
+      return nxt;
     });
     setEditVis(false);
-    setTimeout(buildRecs, 0);
   };
 
-  /* ---------- save dialog ---------- */
-  const startSave = (r: Rec) => {
+  // delete detection
+  const deleteDet = (imgIdx: number, detIdx: number) => {
+    setImages(prev => {
+      const nxt = [...prev];
+      const snap = nxt[imgIdx];
+      const newDet = [...snap.detections];
+      newDet.splice(detIdx, 1);
+
+      if (newDet.length === 0) {
+        // если _id есть – удаляем и на сервере
+        if (snap._id) {
+          Alert.alert(
+            'Удалить фото?',
+            'Фото будет удалено и на сервере.',
+            [
+              { text: 'Отмена', style: 'cancel' },
+              {
+                text: 'Удалить',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await deletePhoto(snap._id!);
+                    setSnack('Фото удалено');
+                  } catch {
+                    setSnack('Ошибка удаления');
+                  }
+                  // убрать из UI
+                  setImages(current => {
+                    const arr = [...current];
+                    arr.splice(imgIdx, 1);
+                    return arr;
+                  });
+                },
+              },
+            ]
+          );
+        } else {
+          // просто убрать из UI
+          nxt.splice(imgIdx, 1);
+        }
+      } else {
+        nxt[imgIdx] = { ...snap, detections: newDet };
+      }
+      return nxt;
+    });
+  };
+
+  // save outfit
+  const openSave = (r: Rec) => {
     setSaveRec(r);
     setSaveName(r.method);
     setSaveDate(new Date());
@@ -169,86 +256,175 @@ export default function ResultScreen({ route, navigation }: any) {
       setSnack('Сохранено');
     } catch {
       setSnack('Ошибка');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
-  /* --- grid calc --- */
-  const GAP = 12, COLS = 2;
-  const ITEM_W = (Dimensions.get('window').width - GAP * (COLS + 1)) / COLS;
+  // grid dimensions
+  const GAP = 12,
+    COLS = 2;
+  const ITEM_W =
+    (Dimensions.get('window').width - GAP * (COLS + 1)) / COLS;
 
-  /* =============== RENDER =============== */
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" />
 
       <Searchbar
         placeholder="Поиск"
-        value={search}
-        onChangeText={setSearch}
+        value={query}
+        onChangeText={setQuery}
         style={styles.search}
       />
 
-      {/* Tabs */}
       <View style={styles.tabs}>
-        {['det', 'rec'].map(t => (
+        {(['det', 'rec'] as const).map(t => (
           <TouchableOpacity
             key={t}
-            style={[styles.tab, tab === t && styles.tabActive]}
-            onPress={() => setTab(t as 'det' | 'rec')}
+            style={[
+              styles.tab,
+              tab === t && styles.tabActive,
+            ]}
+            onPress={() => setTab(t)}
           >
-            <Text style={[styles.tabTxt, tab === t && styles.tabTxtActive]}>
+            <Text
+              style={[
+                styles.tabTxt,
+                tab === t && styles.tabTxtActive,
+              ]}
+            >
               {t === 'det' ? 'Детекции' : 'Рекомендации'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* CONTENT */}
       {tab === 'det' ? (
         <FlatList
           ref={listRef}
-          key="det"
           data={detData}
+          key="det"
           numColumns={COLS}
           columnWrapperStyle={{ gap: GAP }}
-          contentContainerStyle={{ padding: GAP, paddingBottom: 100 }}
-          keyExtractor={makeKey}
+          contentContainerStyle={{
+            padding: GAP,
+            paddingBottom: 100,
+          }}
+          keyExtractor={keyDet}
           renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => startEdit(item.imgIndex, item.detIdx)}>
-              <Card style={[styles.detCard, { width: ITEM_W }]}>
-                <Image source={{ uri: item.uri }} style={styles.detImg} />
-                <View style={styles.detInfo}>
-                  <Text numberOfLines={1} style={styles.detName}>{item.name}</Text>
-                  <Text numberOfLines={1} style={styles.detColor}>{item.color_name}</Text>
-                </View>
-              </Card>
-            </TouchableOpacity>
+            <Card
+              style={[
+                styles.detCard,
+                { width: ITEM_W },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={() =>
+                  openEdit(item.imgIdx, item.detIdx)
+                }
+              >
+                <Image
+                  source={{ uri: item.uri }}
+                  style={styles.detImg}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.delBtn}
+                onPress={() =>
+                  deleteDet(item.imgIdx, item.detIdx)
+                }
+              >
+                <MaterialIcons
+                  name="delete"
+                  size={20}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+              <View style={styles.detInfo}>
+                <Text
+                  numberOfLines={1}
+                  style={styles.detName}
+                >
+                  {item.name}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={styles.detColor}
+                >
+                  {item.color_name}
+                </Text>
+              </View>
+            </Card>
           )}
         />
       ) : (
         <FlatList
           ref={listRef}
-          key="rec"
           data={recData}
-          contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
+          key="rec"
+          contentContainerStyle={{
+            padding: 12,
+            paddingBottom: 100,
+          }}
           keyExtractor={r => r.method}
           renderItem={({ item }) => (
             <Card style={styles.recCard}>
               <View style={styles.recHeader}>
-                <View style={[
-                  styles.scoreBadge,
-                  { backgroundColor: item.score >= 8 ? '#4caf50' : item.score >= 5 ? '#ff9800' : '#f44336' }
-                ]}>
-                  <Text style={styles.scoreTxt}>{item.score.toFixed(1)}</Text>
+                <View
+                  style={[
+                    styles.scoreBadge,
+                    {
+                      backgroundColor:
+                        item.score >= 8
+                          ? '#4caf50'
+                          : item.score >= 5
+                            ? '#ff9800'
+                            : '#f44336',
+                    },
+                  ]}
+                >
+                  <Text style={styles.scoreTxt}>
+                    {item.score.toFixed(1)}
+                  </Text>
                 </View>
-                <Text style={styles.recTitle}>{item.method}</Text>
-                <Button icon="content-save-outline" compact onPress={() => startSave(item)} />
+                <Text style={styles.recTitle}>
+                  {item.method}
+                </Text>
+                <Button
+                  icon="content-save-outline"
+                  compact
+                  onPress={() => openSave(item)}
+                />
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={
+                  false
+                }
+                contentContainerStyle={{
+                  paddingHorizontal: 12,
+                  paddingBottom: 12,
+                }}
+              >
                 {item.items.map(it => (
-                  <View key={makeKey(it)} style={{ alignItems: 'center', marginRight: 12 }}>
-                    <Image source={{ uri: it.uri }} style={styles.recImg} />
-                    <Text style={styles.recImgTxt} numberOfLines={1}>{it.name}</Text>
+                  <View
+                    key={keyDet(it)}
+                    style={{
+                      alignItems: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <Image
+                      source={{ uri: it.uri }}
+                      style={styles.recImg}
+                    />
+                    <Text
+                      style={styles.recImgTxt}
+                      numberOfLines={1}
+                    >
+                      {it.name}
+                    </Text>
                   </View>
                 ))}
               </ScrollView>
@@ -257,81 +433,194 @@ export default function ResultScreen({ route, navigation }: any) {
         />
       )}
 
-      {/* FAB up */}
       <FAB
         icon="arrow-up"
         small
-        onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}
+        onPress={() =>
+          listRef.current?.scrollToOffset({
+            offset: 0,
+            animated: true,
+          })
+        }
         style={styles.fab}
       />
 
-      {/* -------- dialogs -------- */}
       <Portal>
-        {/* edit */}
-        <Dialog visible={editVis} onDismiss={() => setEditVis(false)}>
+        {/* Edit Dialog */}
+        <Dialog
+          visible={editVis}
+          onDismiss={() => setEditVis(false)}
+        >
           <Dialog.Title>Редактировать</Dialog.Title>
           <Dialog.Content>
             <Text style={styles.label}>Класс</Text>
-            <Picker selectedValue={editName} onValueChange={setEditName} style={styles.picker}>
-              {clothingOptions.map(c => <Picker.Item key={c} label={c} value={c} />)}
+            <Picker
+              selectedValue={eName}
+              onValueChange={setEName}
+              style={styles.picker}
+            >
+              {clothes.map(c => (
+                <Picker.Item
+                  key={c}
+                  label={c}
+                  value={c}
+                />
+              ))}
             </Picker>
             <Text style={styles.label}>Цвет</Text>
-            <Picker selectedValue={editColor} onValueChange={setEditColor} style={styles.picker}>
-              {colorOptions.map(c => <Picker.Item key={c} label={c} value={c} />)}
+            <Picker
+              selectedValue={eColor}
+              onValueChange={setEColor}
+              style={styles.picker}
+            >
+              {colors.map(c => (
+                <Picker.Item
+                  key={c}
+                  label={c}
+                  value={c}
+                />
+              ))}
             </Picker>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setEditVis(false)}>Отмена</Button>
+            <Button onPress={() => setEditVis(false)}>
+              Отмена
+            </Button>
             <Button onPress={applyEdit}>OK</Button>
           </Dialog.Actions>
         </Dialog>
 
-        {/* save */}
-        <Dialog visible={saveVis} onDismiss={() => setSaveVis(false)}>
+        {/* Save Dialog */}
+        <Dialog
+          visible={saveVis}
+          onDismiss={() => setSaveVis(false)}
+        >
           <Dialog.Title>Сохранить лук</Dialog.Title>
           <Dialog.Content>
-            <TextInput label="Название" mode="outlined" value={saveName} onChangeText={setSaveName} style={{ marginBottom: 12 }} />
+            <TextInput
+              label="Название"
+              mode="outlined"
+              value={saveName}
+              onChangeText={setSaveName}
+              style={{ marginBottom: 12 }}
+            />
             <Text style={styles.label}>Дата</Text>
-            <DateTimePicker value={saveDate} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => d && setSaveDate(d)} />
+            <DateTimePicker
+              value={saveDate}
+              mode="date"
+              display={
+                Platform.OS === 'ios'
+                  ? 'spinner'
+                  : 'default'
+              }
+              onChange={(_, d) => d && setSaveDate(d)}
+            />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setSaveVis(false)}>Отмена</Button>
-            <Button onPress={doSave} loading={saving} disabled={saving}>Сохранить</Button>
+            <Button onPress={() => setSaveVis(false)}>
+              Отмена
+            </Button>
+            <Button
+              onPress={doSave}
+              loading={saving}
+              disabled={saving}
+            >
+              Сохранить
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
 
-      <Snackbar visible={!!snack} onDismiss={() => setSnack(null)} duration={2500}>{snack}</Snackbar>
+      <Snackbar
+        visible={!!snack}
+        onDismiss={() => setSnack(null)}
+        duration={2500}
+      >
+        {snack}
+      </Snackbar>
     </View>
   );
 }
 
-/* ---------- styles ---------- */
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fafafa' },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   search: { margin: 12, borderRadius: 24 },
-  tabs: { flexDirection: 'row', marginHorizontal: 12, borderRadius: 24, overflow: 'hidden', backgroundColor: '#e0e0e0' },
+
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: 12,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#e0e0e0',
+  },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center' },
   tabActive: { backgroundColor: '#fff' },
-  tabTxt: { fontSize: 16, color: '#555' }, tabTxtActive: { color: '#000', fontWeight: '600' },
+  tabTxt: { fontSize: 16, color: '#555' },
+  tabTxtActive: { color: '#000', fontWeight: '600' },
 
-  detCard: { borderRadius: 12, overflow: 'hidden', marginBottom: 12, elevation: 2 },
+  detCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    elevation: 2,
+  },
   detImg: { width: '100%', height: 140 },
   detInfo: { padding: 8 },
   detName: { fontWeight: '600', marginBottom: 2 },
   detColor: { color: '#666' },
+  delBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 16,
+    padding: 4,
+  },
 
-  recCard: { borderRadius: 14, marginBottom: 12, elevation: 2 },
-  recHeader: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#f5f5f5' },
-  scoreBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginRight: 8 },
+  recCard: {
+    borderRadius: 14,
+    marginBottom: 12,
+    elevation: 2,
+  },
+  recHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f5f5f5',
+  },
+  scoreBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginRight: 8,
+  },
   scoreTxt: { color: '#fff', fontWeight: '600' },
   recTitle: { flex: 1, fontSize: 16, fontWeight: '600' },
-  recImg: { width: 90, height: 90, borderRadius: 8, backgroundColor: '#ccc' },
-  recImgTxt: { width: 90, textAlign: 'center', fontSize: 12, marginTop: 4 },
+  recImg: {
+    width: 90,
+    height: 90,
+    borderRadius: 8,
+    backgroundColor: '#ccc',
+  },
+  recImgTxt: {
+    width: 90,
+    textAlign: 'center',
+    fontSize: 12,
+    marginTop: 4,
+  },
 
   label: { marginTop: 6, marginBottom: 4, color: '#555' },
   picker: { backgroundColor: '#f2f2f2', borderRadius: 6 },
 
-  fab: { position: 'absolute', right: 16, bottom: 16, backgroundColor: '#6200ee' },
+  fab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    backgroundColor: '#6200ee',
+  },
 });

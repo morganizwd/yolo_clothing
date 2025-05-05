@@ -1,6 +1,7 @@
 # app/config.py
 import os
 from pydantic_settings import BaseSettings
+from pathlib import Path
 
 class Settings(BaseSettings):
     MONGO_URI: str = os.getenv(
@@ -10,5 +11,12 @@ class Settings(BaseSettings):
     JWT_SECRET: str = os.getenv("JWT_SECRET", "change_this_secret")
     JWT_ALGORITHM: str = "HS256"                     # <-- здесь был пропущен тип
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+
+# корень проекта (…/yolo‑clothes)
+BASE_DIR: Path = Path(__file__).resolve().parent.parent
+
+# …/yolo‑clothes/static — здесь лежат /static/user/…
+STATIC_DIR: Path = BASE_DIR / "static"
+STATIC_DIR.mkdir(parents=True, exist_ok=True)     # гарантируем существование
 
 settings = Settings()

@@ -8,6 +8,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import ResultScreen from './src/screens/ResultScreen';
 import AuthScreen from './src/screens/AuthScreen';
 import OutfitsScreen from './src/screens/OutfitsScreen';
+import WeatherScreen from './src/screens/WeatherScreen';
 import { logout } from './src/api/auth';
 import { bootstrapAuthHeader } from './src/api/auth';
 
@@ -62,6 +63,9 @@ export default function App() {
                   component={OutfitsScreen}
                   options={{ headerShown: false }}
                 />
+                <Stack.Screen name="Weather" component={WeatherScreen}
+                  options={{ headerShown: false }} />
+                  
               </Stack.Navigator>
             ) : (
               /* ---- стэк авторизации ---- */

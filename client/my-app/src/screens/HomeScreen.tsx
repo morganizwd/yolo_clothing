@@ -1,4 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+// src/screens/HomeScreen.tsx
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,7 +8,15 @@ import {
   SafeAreaView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Appbar, Button, Card, FAB, Snackbar, Text, Portal } from 'react-native-paper';
+import {
+  Appbar,
+  Button,
+  Card,
+  FAB,
+  Snackbar,
+  Text,
+  Portal,
+} from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -17,12 +26,14 @@ import { listPhotos, SavedPhoto } from '../api/photos';
 type SingleResult = { uri: string; detections: DetectionItem[] };
 
 export default function HomeScreen({ navigation }: any) {
+  /* ───────── state */
   const [uris, setUris] = useState<string[]>([]);
   const [saved, setSaved] = useState<SavedPhoto[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [snackbar, setSnackbar] = useState<string | null>(null);
 
+  /* ───────── header */
   useLayoutEffect(() => {
     navigation.setOptions({
       header: () => (
@@ -33,6 +44,7 @@ export default function HomeScreen({ navigation }: any) {
     });
   }, [navigation]);
 
+  /* ───────── permissions */
   useEffect(() => {
     (async () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -40,6 +52,7 @@ export default function HomeScreen({ navigation }: any) {
     })();
   }, []);
 
+  /* ───────── saved photos */
   useEffect(() => {
     (async () => {
       setSyncing(true);
@@ -54,16 +67,17 @@ export default function HomeScreen({ navigation }: any) {
     })();
   }, []);
 
+  /* ───────── pick images */
   const pickImages = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
         quality: 0.8,
       });
 
-      if (!result.cancelled) {
-        const assets = ('assets' in result ? result.assets : [result]).map(a => a.uri);
+      if (!res.cancelled) {
+        const assets = ('assets' in res ? res.assets : [res]).map(a => a.uri);
         setUris(assets);
       }
     } catch {
@@ -71,35 +85,39 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
+  /* ───────── detect */
   const handleDetectAll = async () => {
     if (!uris.length) return setSnackbar('Выберите хотя бы одно фото');
     setLoading(true);
     try {
-      const allResults: SingleResult[] = [];
+      const results: SingleResult[] = [];
       for (const uri of uris) {
         const detections = await detectImage(uri);
-        allResults.push({ uri, detections });
+        results.push({ uri, detections });
       }
-      navigation.navigate('Result', { results: allResults });
+      navigation.navigate('Result', { results });
     } catch (e: any) {
-      setSnackbar(e.message || 'Что-то пошло не так');
+      setSnackbar(e.message || 'Что‑то пошло не так');
     } finally {
       setLoading(false);
     }
   };
 
+  /* ───────── open saved */
   const openSaved = () => {
-    if (saved.length === 0) return;
+    if (!saved.length) return;
     const results = saved.map(p => ({ uri: p.uri_orig, detections: p.detections }));
     navigation.navigate('Result', { results });
   };
 
+  /* ───────── render */
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
+      {/* hero‑блок */}
       <LinearGradient
-        colors={["#FF8A65", "#FF7043"]}
+        colors={['#FF8A65', '#FF7043']}
         style={styles.hero}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -114,22 +132,24 @@ export default function HomeScreen({ navigation }: any) {
         </Animated.View>
       </LinearGradient>
 
+      {/* превью выбранных фото */}
       {uris.length > 0 && (
         <Animated.ScrollView
           horizontal
+          entering={FadeInUp.delay(200)}
           style={styles.previewContainer}
           contentContainerStyle={styles.previewContent}
           showsHorizontalScrollIndicator={false}
-          entering={FadeInUp.delay(200)}
         >
-          {uris.map(uri => (
-            <Card key={uri} style={styles.previewCard} elevation={4}>
-              <Card.Cover source={{ uri }} style={styles.previewImage} />
+          {uris.map(u => (
+            <Card key={u} style={styles.previewCard} elevation={4}>
+              <Card.Cover source={{ uri: u }} style={styles.previewImage} />
             </Card>
           ))}
         </Animated.ScrollView>
       )}
 
+      {/* основные кнопки */}
       <View style={styles.actionsContainer}>
         <Button
           mode="contained"
@@ -154,44 +174,48 @@ export default function HomeScreen({ navigation }: any) {
         </Button>
       </View>
 
+      {/* ───── FAB dock ───── */}
       <Portal.Host>
         <Portal>
-          <FAB
-            icon="trash-can-outline"
-            style={[styles.fab, { bottom: 100 }]}
-            onPress={() => setUris([])}
-            disabled={uris.length === 0}
-          />
+          <View style={styles.fabDock}>
+            <FAB
+              icon="weather-partly-cloudy"
+              small
+              style={[styles.dockFab, { backgroundColor: '#03A9F4' }]}
+              onPress={() => navigation.navigate('Weather')}
+            />
 
-          <FAB
-            icon="tshirt-crew"
-            style={[styles.fab, { bottom: 180, backgroundColor: '#009688' }]}
-            onPress={openSaved}
-            loading={syncing}
-            disabled={saved.length === 0}
-          />
+            <FAB
+              icon="tshirt-crew"
+              small
+              style={[styles.dockFab, { backgroundColor: '#009688' }]}
+              onPress={openSaved}
+              loading={syncing}
+              disabled={!saved.length}
+            />
 
-          <FAB
-            icon="calendar"
-            small
-            style={[styles.fab, { bottom: 260, backgroundColor: '#607D8B' }]}
-            onPress={() => navigation.navigate('Outfits')}
-          />
+            <FAB
+              icon="calendar"
+              small
+              style={[styles.dockFab, { backgroundColor: '#607D8B' }]}
+              onPress={() => navigation.navigate('Outfits')}
+            />
 
-          <FAB
-            icon="logout"
-            small
-            style={[styles.fab, { bottom: 340, backgroundColor: '#E53935' }]}
-            onPress={() => navigation.navigate('Logout')}
-          />
+            <FAB
+              icon="logout"
+              small
+              style={[styles.dockFab, { backgroundColor: '#E53935' }]}
+              onPress={() => navigation.navigate('Logout')}
+            />
+          </View>
         </Portal>
       </Portal.Host>
 
       <Snackbar
         visible={!!snackbar}
         onDismiss={() => setSnackbar(null)}
-        action={{ label: 'OK', onPress: () => setSnackbar(null) }}
         duration={4000}
+        action={{ label: 'OK', onPress: () => setSnackbar(null) }}
       >
         {snackbar}
       </Snackbar>
@@ -199,12 +223,14 @@ export default function HomeScreen({ navigation }: any) {
   );
 }
 
+/* ───────── styles */
 const { width } = Dimensions.get('window');
 const CARD_SIZE = width * 0.3;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   headerTitle: { color: '#424242', fontWeight: '600' },
+
   hero: {
     padding: 24,
     borderBottomLeftRadius: 24,
@@ -212,6 +238,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: { color: '#FFFFFF', fontWeight: '700', marginBottom: 8 },
   heroSubtitle: { color: '#FFEDE6' },
+
   previewContainer: { marginTop: -40, paddingHorizontal: 16 },
   previewContent: { alignItems: 'center' },
   previewCard: {
@@ -222,24 +249,27 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   previewImage: { width: '100%', height: '100%' },
+
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
     marginTop: 24,
     paddingHorizontal: 16,
   },
-  button: {
-    flex: 1,
-    marginRight: 8,
-    borderRadius: 24,
-  },
-  detectButton: {
-    flex: 1,
-    marginLeft: 8,
-    borderRadius: 24,
-  },
-  fab: {
+  button: { flex: 1, marginRight: 8, borderRadius: 24 },
+  detectButton: { flex: 1, marginLeft: 8, borderRadius: 24 },
+
+  /* ───── FAB dock ───── */
+  fabDock: {
     position: 'absolute',
-    right: 16,
+    left: 0,
+    right: 0,
+    bottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 20,
+  },
+  dockFab: {
+    elevation: 4,
   },
 });

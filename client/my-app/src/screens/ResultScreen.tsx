@@ -98,7 +98,7 @@ export default function ResultScreen({ route, navigation }: any) {
     });
   }, [navigation]);
 
-  // build recommendations whenever `images` change
+  // rebuild recommendations when images change
   useEffect(() => {
     const allDet = images.flatMap(im =>
       im.detections.map(d => ({ ...d, uri: im.uri }))
@@ -188,7 +188,7 @@ export default function ResultScreen({ route, navigation }: any) {
     setEditVis(false);
   };
 
-  // delete detection
+  // delete single detection
   const deleteDet = (imgIdx: number, detIdx: number) => {
     setImages(prev => {
       const nxt = [...prev];
@@ -197,7 +197,7 @@ export default function ResultScreen({ route, navigation }: any) {
       newDet.splice(detIdx, 1);
 
       if (newDet.length === 0) {
-        // если _id есть – удаляем и на сервере
+        // если удаляем всё фото
         if (snap._id) {
           Alert.alert(
             'Удалить фото?',
@@ -214,9 +214,8 @@ export default function ResultScreen({ route, navigation }: any) {
                   } catch {
                     setSnack('Ошибка удаления');
                   }
-                  // убрать из UI
-                  setImages(current => {
-                    const arr = [...current];
+                  setImages(cur => {
+                    const arr = [...cur];
                     arr.splice(imgIdx, 1);
                     return arr;
                   });
@@ -225,7 +224,6 @@ export default function ResultScreen({ route, navigation }: any) {
             ]
           );
         } else {
-          // просто убрать из UI
           nxt.splice(imgIdx, 1);
         }
       } else {
@@ -233,6 +231,34 @@ export default function ResultScreen({ route, navigation }: any) {
       }
       return nxt;
     });
+  };
+
+  // delete all detections & photos
+  const deleteAll = () => {
+    if (!images.length) return setSnack('Нечего удалять');
+    Alert.alert(
+      'Удалить все?',
+      'Все детекции и фото будут удалены, включая серверные файлы.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить всё',
+          style: 'destructive',
+          onPress: async () => {
+            // удаляем все на сервере
+            for (const snap of images) {
+              if (snap._id) {
+                try { await deletePhoto(snap._id); }
+                catch { }
+              }
+            }
+            // очищаем UI
+            setImages([]);
+            setSnack('Все удалено');
+          },
+        },
+      ]
+    );
   };
 
   // save outfit
@@ -433,6 +459,7 @@ export default function ResultScreen({ route, navigation }: any) {
         />
       )}
 
+      {/* кнопка вверх */}
       <FAB
         icon="arrow-up"
         small
@@ -443,6 +470,14 @@ export default function ResultScreen({ route, navigation }: any) {
           })
         }
         style={styles.fab}
+      />
+
+      {/* новая кнопка: удалить все */}
+      <FAB
+        icon="delete-sweep"
+        small
+        onPress={deleteAll}
+        style={[styles.fab, { right: 80 }]}
       />
 
       <Portal>

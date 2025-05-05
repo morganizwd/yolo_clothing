@@ -199,7 +199,7 @@ export default function WeatherScreen({ navigation }: any) {
                                         color="#fff"
                                         style={{ marginRight: 6 }}
                                     />
-                                    <Text style={styles.tempTxt}>{place.temp.toFixed(1)}°</Text>
+                                    <Text style={styles.tempTxt}>{place.temp.toFixed(1)}°С</Text>
                                 </View>
                             </View>
 

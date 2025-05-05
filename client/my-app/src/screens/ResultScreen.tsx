@@ -21,9 +21,10 @@ import {
   ActivityIndicator,
   Dialog,
   Portal,
-  Button,
+  IconButton,
   TextInput,
   Snackbar,
+  Button
 } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
@@ -417,9 +418,9 @@ export default function ResultScreen({ route, navigation }: any) {
                 <Text style={styles.recTitle}>
                   {item.method}
                 </Text>
-                <Button
+                <IconButton
                   icon="content-save-outline"
-                  compact
+                  size={24}
                   onPress={() => openSave(item)}
                 />
               </View>
@@ -518,9 +519,7 @@ export default function ResultScreen({ route, navigation }: any) {
             </Picker>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setEditVis(false)}>
-              Отмена
-            </Button>
+            <Button onPress={() => setEditVis(false)}>Отмена</Button>
             <Button onPress={applyEdit}>OK</Button>
           </Dialog.Actions>
         </Dialog>

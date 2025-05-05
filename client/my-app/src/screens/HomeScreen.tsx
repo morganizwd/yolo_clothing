@@ -1,5 +1,5 @@
 // src/screens/HomeScreen.tsx
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -19,6 +19,7 @@ import {
 } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { detectImage, DetectionItem } from '../api';
 import { listPhotos, SavedPhoto } from '../api/photos';
@@ -26,48 +27,51 @@ import { listPhotos, SavedPhoto } from '../api/photos';
 type SingleResult = { uri: string; detections: DetectionItem[] };
 
 export default function HomeScreen({ navigation }: any) {
-  /* ───────── state */
   const [uris, setUris] = useState<string[]>([]);
   const [saved, setSaved] = useState<SavedPhoto[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [snackbar, setSnackbar] = useState<string | null>(null);
 
-  /* ───────── header */
+  /* обновляем список сохранённых фото при фокусе экрана */
+  useFocusEffect(useCallback(() => {
+    let mounted = true;
+    (async () => {
+      setSyncing(true);
+      try {
+        const photos = await listPhotos();
+        if (mounted) setSaved(photos);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        if (mounted) setSyncing(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []));
+
+  /* настраиваем Header */
   useLayoutEffect(() => {
     navigation.setOptions({
       header: () => (
-        <Appbar.Header elevated style={{ backgroundColor: '#ffffff' }}>
+        <Appbar.Header elevated style={{ backgroundColor: '#fff' }}>
           <Appbar.Content title="Главная" titleStyle={styles.headerTitle} />
         </Appbar.Header>
       ),
     });
   }, [navigation]);
 
-  /* ───────── permissions */
+  /* запрашиваем разрешения на галерею */
   useEffect(() => {
     (async () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') setSnackbar('Доступ к галерее не разрешен');
-    })();
-  }, []);
-
-  /* ───────── saved photos */
-  useEffect(() => {
-    (async () => {
-      setSyncing(true);
-      try {
-        const photos = await listPhotos();
-        setSaved(photos);
-      } catch (err) {
-        console.warn(err);
-      } finally {
-        setSyncing(false);
+      if (status !== 'granted') {
+        setSnackbar('Доступ к галерее не разрешён');
       }
     })();
   }, []);
 
-  /* ───────── pick images */
+  /* выбор фотографий */
   const pickImages = async () => {
     try {
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -75,8 +79,7 @@ export default function HomeScreen({ navigation }: any) {
         allowsMultipleSelection: true,
         quality: 0.8,
       });
-
-      if (!res.cancelled) {
+      if (!res.canceled) {
         const assets = ('assets' in res ? res.assets : [res]).map(a => a.uri);
         setUris(assets);
       }
@@ -85,9 +88,12 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-  /* ───────── detect */
+  /* распознаём все выбранные фото */
   const handleDetectAll = async () => {
-    if (!uris.length) return setSnackbar('Выберите хотя бы одно фото');
+    if (!uris.length) {
+      setSnackbar('Выберите хотя бы одно фото');
+      return;
+    }
     setLoading(true);
     try {
       const results: SingleResult[] = [];
@@ -96,42 +102,36 @@ export default function HomeScreen({ navigation }: any) {
         results.push({ uri, detections });
       }
       navigation.navigate('Result', { results });
+      // сразу сбрасываем выбор, чтобы превью исчезли при возврате
+      setUris([]);
     } catch (e: any) {
-      setSnackbar(e.message || 'Что‑то пошло не так');
+      setSnackbar(e.message || 'Что-то пошло не так');
     } finally {
       setLoading(false);
     }
   };
 
-  /* ───────── open saved */
-  const openSaved = async () => {
-    setSyncing(true);
-    try {
-      const fresh = await listPhotos();
-      if (fresh.length === 0) {
-        setSnackbar('Нет сохранённых фото');
-        return;
-      }
-      const results = fresh.map(p => ({
-        _id: p._id,               // чтобы в ResultScreen знали id для deletePhoto
-        uri: p.uri_orig,
-        detections: p.detections,
-      }));
-      navigation.navigate('Result', { results });
-    } catch (e) {
-      console.warn(e);
-      setSnackbar('Не удалось загрузить фото');
-    } finally {
-      setSyncing(false);
+  /* открываем ранее сохранённые фото */
+  const openSaved = () => {
+    if (!saved.length) {
+      setSnackbar('Нет сохранённых фото');
+      return;
     }
+    const results = saved.map(p => ({
+      _id: p._id,            // id нужен для возможности удалять на экране результатов
+      uri: p.uri_orig,
+      detections: p.detections,
+    }));
+    navigation.navigate('Result', { results });
+    // сбрасываем текущее выделение
+    setUris([]);
   };
 
-  /* ───────── render */
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* hero‑блок */}
+      {/* Hero-блок */}
       <LinearGradient
         colors={['#FF8A65', '#FF7043']}
         style={styles.hero}
@@ -148,7 +148,7 @@ export default function HomeScreen({ navigation }: any) {
         </Animated.View>
       </LinearGradient>
 
-      {/* превью выбранных фото */}
+      {/* Превью выбранных фото */}
       {uris.length > 0 && (
         <Animated.ScrollView
           horizontal
@@ -165,13 +165,13 @@ export default function HomeScreen({ navigation }: any) {
         </Animated.ScrollView>
       )}
 
-      {/* основные кнопки */}
+      {/* Основные кнопки */}
       <View style={styles.actionsContainer}>
         <Button
           mode="contained"
           icon="image-multiple"
           onPress={pickImages}
-          buttonColor="#FFFFFF"
+          buttonColor="#fff"
           textColor="#FF7043"
           style={styles.button}
         >
@@ -186,45 +186,40 @@ export default function HomeScreen({ navigation }: any) {
           loading={loading}
           style={styles.detectButton}
         >
-          Распознать все
+          Распознать всё
         </Button>
       </View>
 
-      {/* ───── FAB dock ───── */}
+      {/* Нижнее меню FAB */}
       <Portal.Host>
-        <Portal>
-          <View style={styles.fabDock}>
-            <FAB
-              icon="weather-partly-cloudy"
-              small
-              style={[styles.dockFab, { backgroundColor: '#03A9F4' }]}
-              onPress={() => navigation.navigate('Weather')}
-            />
-
-            <FAB
-              icon="tshirt-crew"
-              small
-              style={[styles.dockFab, { backgroundColor: '#009688' }]}
-              onPress={openSaved}
-              loading={syncing}
-              disabled={!saved.length}
-            />
-
-            <FAB
-              icon="calendar"
-              small
-              style={[styles.dockFab, { backgroundColor: '#607D8B' }]}
-              onPress={() => navigation.navigate('Outfits')}
-            />
-
-            <FAB
-              icon="logout"
-              small
-              style={[styles.dockFab, { backgroundColor: '#E53935' }]}
-              onPress={() => navigation.navigate('Logout')}
-            />
-          </View>
-        </Portal>
+        <View style={styles.fabDock}>
+          <FAB
+            icon="weather-partly-cloudy"
+            small
+            style={[styles.dockFab, { backgroundColor: '#03A9F4' }]}
+            onPress={() => navigation.navigate('Weather')}
+          />
+          <FAB
+            icon="tshirt-crew"
+            small
+            style={[styles.dockFab, { backgroundColor: '#009688' }]}
+            onPress={openSaved}
+            loading={syncing}
+            disabled={syncing || !saved.length}
+          />
+          <FAB
+            icon="calendar"
+            small
+            style={[styles.dockFab, { backgroundColor: '#607D8B' }]}
+            onPress={() => navigation.navigate('Outfits')}
+          />
+          <FAB
+            icon="logout"
+            small
+            style={[styles.dockFab, { backgroundColor: '#E53935' }]}
+            onPress={() => navigation.navigate('Logout')}
+          />
+        </View>
       </Portal.Host>
 
       <Snackbar
@@ -239,7 +234,7 @@ export default function HomeScreen({ navigation }: any) {
   );
 }
 
-/* ───────── styles */
+/* ───────── стили ───────── */
 const { width } = Dimensions.get('window');
 const CARD_SIZE = width * 0.3;
 
@@ -252,7 +247,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
-  heroTitle: { color: '#FFFFFF', fontWeight: '700', marginBottom: 8 },
+  heroTitle: { color: '#fff', fontWeight: '700', marginBottom: 8 },
   heroSubtitle: { color: '#FFEDE6' },
 
   previewContainer: { marginTop: -40, paddingHorizontal: 16 },
@@ -275,7 +270,6 @@ const styles = StyleSheet.create({
   button: { flex: 1, marginRight: 8, borderRadius: 24 },
   detectButton: { flex: 1, marginLeft: 8, borderRadius: 24 },
 
-  /* ───── FAB dock ───── */
   fabDock: {
     position: 'absolute',
     left: 0,

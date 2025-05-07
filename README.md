@@ -10,7 +10,7 @@
 | Слой          | Технологии                                                |
 | ------------- | --------------------------------------------------------- |
 | **Back‑end**  | Python 3.10, FastAPI, Uvicorn, Pydantic, YOLOv5 (PyTorch) |
-| **Front‑end** | React, TypeScript, Vite¹, Tailwind CSS²                   |
+| **Front‑end** | React Native, TypeScript, Vite¹, Bootstrap                |
 | **Dev Ops**   | Docker (опционально), Git субмодули                       |
 
 > ¹ При создании проекта использован `create-vite`.

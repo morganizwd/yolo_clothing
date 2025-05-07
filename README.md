@@ -63,7 +63,7 @@ $ npm start
 ```
 yolo_clothing/
 ├── client/
-│   └── my-app/        # Front‑end (React + TS)
+│   └── my-app/        # Front‑end (React Native + TS)
 ├── yolo-clothes/      # Back‑end (FastAPI)
 │   ├── app/
 │   │   ├── main.py

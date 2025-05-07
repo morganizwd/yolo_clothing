@@ -55,8 +55,8 @@ $ cd client/my-app
 # Устанавливаем npm‑зависимости (первый запуск)
 $ npm install
 
-# Стартуем dev‑сервер
-$ npm start   # или: npm run dev
+# Стартуем expo react native
+$ npm start 
 ```
 
 Приложение откроется на **`http://localhost:3000`** (порт React по умолчанию).

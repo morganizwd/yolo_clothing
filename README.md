@@ -13,9 +13,6 @@
 | **Front‑end** | React Native, TypeScript, Vite¹, Bootstrap                |
 | **Dev Ops**   | Docker (опционально), Git субмодули                       |
 
-> ¹ При создании проекта использован `create-vite`.
-> ² Tailwind уже подключён в `client/my-app` и готов к работе.
-
 ---
 
 ## Быстрый старт

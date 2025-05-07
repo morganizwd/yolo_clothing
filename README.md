@@ -41,8 +41,6 @@ $ pip install -r requirements.txt
 $ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-*Swagger‑документация будет доступна по адресу* **`http://localhost:8000/docs`**.
-
 ### Запуск клиента
 
 ```bash

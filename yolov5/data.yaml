@@ -1,0 +1,5 @@
+train: C:/Users/morga/yolov5/csdataset2 
+val: C:/Users/morga/yolov5/csdataset2 
+
+nc: 3  
+names: ['arctic_avengers', 'elite_crew', 'gign']  

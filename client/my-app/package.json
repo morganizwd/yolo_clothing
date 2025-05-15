@@ -28,6 +28,7 @@
     "moti": "^0.30.0",
     "react": "19.0.0",
     "react-native": "0.79.2",
+    "react-native-calendars": "^1.1312.0",
     "react-native-fast-image": "^8.6.3",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-image-picker": "^8.2.0",
